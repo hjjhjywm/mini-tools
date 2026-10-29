@@ -1,0 +1,13 @@
+﻿{
+  "name": "gh-lens",
+  "version": "1.5.0",
+  "private": true,
+  "type": "module",
+  "description": "带磁盘缓存与重试的 GitHub 本地浏览器",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test.mjs",
+    "smoke": "node smoke.mjs",
+    "ui": "node ui-smoke.mjs"
+  }
+}

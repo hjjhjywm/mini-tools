@@ -1,0 +1,538 @@
+:root {
+  --wood-dark: #6b4423;
+  --wood-mid: #c9a06a;
+  --wood-light: #e8cfa6;
+  --wood-line: #5a3a1a;
+  --red-piece: #b02020;
+  --black-piece: #1a1a1a;
+  --bg: #24201b;
+  --panel: #2e2822;
+  --panel-2: #38302a;
+  --text: #e8ddcc;
+  --text-dim: #a89880;
+  --accent: #d4a054;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  user-select: none;
+  overflow: hidden;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  padding: 14px 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  border-bottom: 1px solid #3a322a;
+  background: linear-gradient(180deg, #2c2620, #241f1a);
+  -webkit-app-region: drag;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: 4px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.status-line {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  padding: 18px;
+  gap: 18px;
+}
+
+.board-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+#board {
+  height: 100%;
+  max-height: calc(100vh - 110px);
+  width: auto;
+  aspect-ratio: 9 / 10;
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.thinking {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20,16,12,.85);
+  color: var(--accent);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  backdrop-filter: blur(4px);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: .65; }
+  50% { opacity: 1; }
+}
+
+.panel {
+  width: 258px;
+  flex: 0 0 258px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.panel::-webkit-scrollbar { width: 6px; }
+.panel::-webkit-scrollbar-thumb { background: #4a4036; border-radius: 3px; }
+
+.judge {
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #3e352c;
+}
+
+.turn-badge {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.turn-badge .dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+.turn-badge .dot.red { background: #e04040; color: #e04040; }
+.turn-badge .dot.black { background: #9a9a9a; color: #9a9a9a; }
+
+.check-warn {
+  color: #ff6b4a;
+  font-weight: 700;
+  font-size: 14px;
+  animation: blink .8s infinite;
+}
+@keyframes blink { 50% { opacity: .35; } }
+
+.group { display: flex; flex-direction: column; gap: 8px; }
+
+/* 关键：.group 的 display:flex 会覆盖 hidden 属性自带的 display:none，
+   必须显式声明，否则带 hidden 的分组依然会显示出来。 */
+.group[hidden] { display: none !important; }
+[hidden] { display: none !important; }
+
+.group-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+}
+.segmented.vertical { flex-direction: column; }
+
+.segmented button {
+  flex: 1;
+  padding: 9px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-dim);
+  background: var(--panel);
+  border: 1px solid #3e352c;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.segmented button:hover { background: var(--panel-2); color: var(--text); }
+
+.segmented button.active {
+  background: linear-gradient(180deg, #4a3a24, #3a2c1a);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.actions { flex-direction: row; gap: 8px; }
+
+.btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid #463c31;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn:hover { background: #43392f; border-color: #5a4c3c; }
+.btn:active { transform: translateY(1px); }
+.btn.primary {
+  background: linear-gradient(180deg, #7a5a2a, #5e441c);
+  border-color: var(--accent);
+  color: #ffe9c4;
+  font-weight: 600;
+}
+.btn:disabled { opacity: .4; cursor: default; transform: none; }
+
+.move-list {
+  height: 168px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid #3e352c;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  font-family: "Consolas", "Microsoft YaHei", monospace;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+.move-list::-webkit-scrollbar { width: 5px; }
+.move-list::-webkit-scrollbar-thumb { background: #4a4036; border-radius: 3px; }
+
+.move-list .mv { display: flex; gap: 6px; }
+.move-list .mv .no { color: #6a5c4c; min-width: 24px; }
+.move-list .mv .red-mv { color: #e07a5f; }
+.move-list .mv .black-mv { color: #b8b0a0; }
+
+.ai-meta {
+  font-size: 11px;
+  color: #6e6154;
+  font-family: "Consolas", monospace;
+  text-align: center;
+  padding: 4px;
+}
+
+/* ---------- 残局 ---------- */
+.endgame-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.endgame-list::-webkit-scrollbar { width: 5px; }
+.endgame-list::-webkit-scrollbar-thumb { background: #4a4036; border-radius: 3px; }
+
+.eg-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-dim);
+  background: var(--panel);
+  border: 1px solid #3e352c;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.eg-item:hover { background: var(--panel-2); color: var(--text); }
+.eg-item.active {
+  background: linear-gradient(180deg, #4a3a24, #3a2c1a);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.eg-item .eg-level {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #463c31;
+  color: #b8a888;
+  flex: 0 0 auto;
+}
+.eg-item.active .eg-level {
+  background: #5a4520;
+  color: #e8c98a;
+}
+
+.endgame-info {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid #3e352c;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.eg-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.eg-desc {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.eg-hint {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #8fb98f;
+  padding: 6px 8px;
+  background: rgba(80, 140, 80, .12);
+  border-left: 2px solid #5a9a5a;
+  border-radius: 3px;
+}
+.btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
+  flex: none;
+  align-self: flex-start;
+}
+
+/* ---------- 棋局回顾 ---------- */
+.btn.tiny {
+  padding: 5px 8px;
+  font-size: 12px;
+  flex: none;
+}
+.btn.tiny.danger {
+  color: #d98a6a;
+  border-color: #5a3a2c;
+}
+.btn.tiny.danger:hover { background: #4a2c22; }
+
+.replay-controls {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid #3e352c;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.replay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.replay-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.replay-progress input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #4a4036;
+  border-radius: 2px;
+  outline: none;
+}
+.replay-progress input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.replay-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: "Consolas", monospace;
+  min-width: 52px;
+  text-align: right;
+}
+
+.replay-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.replay-actions .btn { flex: 1; }
+
+.replay-step {
+  font-size: 12px;
+  color: var(--text);
+  padding: 6px 8px;
+  background: #332c24;
+  border-radius: 5px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,8,6,.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+  z-index: 10;
+}
+.overlay[hidden] { display: none; }
+
+.overlay-card {
+  background: linear-gradient(180deg, #332c24, #2a241d);
+  border: 1px solid #4e4336;
+  border-radius: 14px;
+  padding: 32px 44px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+
+.overlay-card h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  color: var(--accent);
+  letter-spacing: 3px;
+}
+
+.overlay-card p {
+  margin: 0 0 22px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.overlay-card .btn { width: 160px; flex: none; }
+
+/* ---------- 音效 ---------- */
+.sound-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sound-row input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #4a4036;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.sound-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.sound-row input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+#btnMute {
+  min-width: 38px;
+  font-size: 14px;
+  line-height: 1;
+  padding: 6px 8px;
+}
+#btnMute.muted {
+  color: #8a7a66;
+  border-color: #3e352c;
+  background: #2a241e;
+}
+
+.sound-val {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: "Consolas", monospace;
+  min-width: 34px;
+  text-align: right;
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* 对局结束后的"是否保存"提示条 */
+.save-tip {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(46, 40, 34, .97);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .55);
+  font-size: 13px;
+  color: var(--text);
+  z-index: 20;
+  animation: tipIn .22s ease-out;
+}
+.save-tip[hidden] { display: none !important; }
+
+@keyframes tipIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

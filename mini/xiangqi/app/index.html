@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>中国象棋</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>中国象棋</h1>
+    <div class="status-line" id="statusLine">红方先行</div>
+  </header>
+
+  <div class="main">
+    <div class="board-wrap">
+      <canvas id="board" width="900" height="1000"></canvas>
+      <div class="thinking" id="thinking" hidden>电脑思考中…</div>
+    </div>
+
+    <aside class="panel">
+      <section class="judge">
+        <div class="turn-badge" id="turnBadge">
+          <span class="dot red"></span><span id="turnText">红方</span>
+        </div>
+        <div class="check-warn" id="checkWarn" hidden>将军！</div>
+      </section>
+
+      <section class="group">
+        <label class="group-label">对局模式</label>
+        <div class="segmented" id="modeGroup">
+          <button data-mode="pve" class="active">人机对战</button>
+          <button data-mode="pvp">双人对战</button>
+          <button data-mode="endgame">残局挑战</button>
+          <button data-mode="replay">棋局回顾</button>
+        </div>
+      </section>
+
+      <section class="group" id="replayGroup" hidden>
+        <label class="group-label">已保存棋局</label>
+        <div class="endgame-list" id="replayList"></div>
+        <div class="actions" style="margin-top:6px">
+          <button class="btn small" id="btnImport">导入棋谱</button>
+          <button class="btn small" id="btnSaveCur">保存本局</button>
+        </div>
+        <div class="actions" style="margin-top:6px">
+          <button class="btn small" id="btnExport">导出选中棋谱</button>
+        </div>
+        <input type="file" id="fileInput" accept=".json,.txt" hidden>
+
+        <div class="replay-controls" id="replayControls" hidden>
+          <div class="replay-head">
+            <span id="replayTitle">—</span>
+            <button class="btn tiny danger" id="btnDeleteGame">删除</button>
+          </div>
+          <div class="replay-progress">
+            <input type="range" id="replaySlider" min="0" max="0" value="0" step="1">
+            <span class="replay-count" id="replayCount">0 / 0</span>
+          </div>
+          <div class="replay-actions">
+            <button class="btn tiny" id="btnFirst" title="开局">⏮</button>
+            <button class="btn tiny" id="btnPrev" title="上一步">◀</button>
+            <button class="btn tiny" id="btnPlay" title="自动播放">▶ 播放</button>
+            <button class="btn tiny" id="btnNext" title="下一步">▶</button>
+            <button class="btn tiny" id="btnLast" title="终局">⏭</button>
+          </div>
+          <div class="replay-step" id="replayStep">—</div>
+        </div>
+      </section>
+
+      <section class="group" id="endgameGroup" hidden>
+        <label class="group-label">选择残局</label>
+        <div class="endgame-list" id="endgameList"></div>
+        <div class="endgame-info" id="endgameInfo" hidden>
+          <div class="eg-name" id="egName"></div>
+          <div class="eg-desc" id="egDesc"></div>
+          <div class="eg-hint" id="egHint" hidden></div>
+          <button class="btn small" id="btnHint">看提示</button>
+        </div>
+      </section>
+
+      <section class="group" id="difficultyGroup">
+        <label class="group-label">电脑难度</label>
+        <div class="segmented vertical" id="diffGroup">
+          <button data-diff="easy">入门</button>
+          <button data-diff="normal" class="active">普通</button>
+          <button data-diff="hard">困难</button>
+          <button data-diff="master">大师</button>
+        </div>
+      </section>
+
+      <section class="group" id="colorGroup">
+        <label class="group-label">执子</label>
+        <div class="segmented" id="colorPick">
+          <button data-side="r" class="active">执红（先手）</button>
+          <button data-side="b">执黑（后手）</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <label class="group-label">走子速度</label>
+        <div class="segmented" id="speedPick">
+          <button data-speed="120">快</button>
+          <button data-speed="260" class="active">适中</button>
+          <button data-speed="480">慢</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <label class="group-label">音效</label>
+        <div class="sound-row">
+          <button class="btn tiny" id="btnMute" title="静音开关">🔊</button>
+          <input type="range" id="volumeSlider" min="0" max="100" step="1" value="70"
+                 aria-label="音效音量">
+          <span class="sound-val" id="volumeVal">70%</span>
+        </div>
+      </section>
+
+      <section class="group actions">
+        <button class="btn" id="btnUndo">悔棋</button>
+        <button class="btn" id="btnNew">重新开局</button>
+      </section>
+
+      <section class="group">
+        <label class="group-label">对局记录</label>
+        <div class="move-list" id="moveList"></div>
+      </section>
+
+      <section class="group ai-info">
+        <div class="ai-meta" id="aiMeta">—</div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="overlay-card">
+      <h2 id="ovTitle">对局结束</h2>
+      <p id="ovText"></p>
+      <div class="overlay-actions">
+        <button class="btn primary" id="ovNew">再来一局</button>
+        <button class="btn" id="ovReview">回顾这局</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="save-tip" id="saveTip" hidden>
+    <span id="saveTipText"></span>
+    <button class="btn tiny primary" id="btnSaveYes">保存</button>
+    <button class="btn tiny" id="btnSaveNo">不用了</button>
+  </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

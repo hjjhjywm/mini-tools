@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>gh-lens · GitHub 浏览器</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">gh</div>
+      <div>
+        <h1>gh-lens</h1>
+        <p>带缓存的 GitHub 浏览器</p>
+      </div>
+    </div>
+
+    <div class="status" id="status">正在检查…</div>
+
+    <div class="searchbox">
+      <input id="repoInput" type="text" placeholder="owner/repo 或粘贴链接" spellcheck="false" autocomplete="off" />
+      <button id="goBtn" class="btn primary">打开</button>
+    </div>
+
+    <div class="toolbar">
+      <button id="refreshBtn" class="btn" title="强制重新抓取当前视图（默认会用缓存）">刷新</button>
+      <button id="snapBtn" class="btn" title="把这个仓库的关键数据全部抓进缓存，之后断网也能看">离线快照</button>
+    </div>
+
+    <div class="toolbar">
+      <button id="exploreBtn" class="btn" title="近期热门、话题、搜索仓库">发现</button>
+    </div>
+
+    <div class="section-title">我的仓库</div>
+    <div class="repolist" id="repoList"></div>
+
+    <div class="foot">
+      <div id="cacheInfo"></div>
+      <div class="hint">数据来自 GitHub API，经本地缓存。断网时显示最后一次成功抓取的结果。</div>
+      <button id="stopBtn" class="btn small stop" title="停止本地服务（结束后台进程）">停止服务</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb" id="crumb">未选择仓库</div>
+      <div class="badges">
+        <span class="badge" id="rateBadge"></span>
+        <span class="badge" id="sourceBadge">—</span>
+        <span class="badge" id="ageBadge"></span>
+        <button id="helpBtn" class="helpbtn" title="重新看一遍使用说明">?</button>
+      </div>
+    </header>
+
+    <div class="notice" id="notice" hidden></div>
+
+    <nav class="tabs" id="tabs" hidden>
+      <button data-tab="overview" class="tab active">概览</button>
+      <button data-tab="readme" class="tab">README</button>
+      <button data-tab="files" class="tab">文件</button>
+      <button data-tab="issues" class="tab">Issues</button>
+      <button data-tab="pulls" class="tab">PR</button>
+      <button data-tab="commits" class="tab">提交</button>
+    </nav>
+
+    <div class="content" id="content">
+      <div class="empty">
+        <h2>在左边输入 <code>owner/repo</code></h2>
+        <p>或者点「我的仓库」里的一项，也可以点左边的 <b>发现</b> 看热门/搜仓库。</p>
+        <p class="dim">第一次打开后可以点 <b>Snapshot</b> 把它缓存下来——之后网络不好也能看。</p>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  /* 启动哨兵：app.js 没跑起来时（典型原因是本地服务还是旧进程 → /query.mjs 404 →
+     import 失败 → 所有按钮静默失灵），2.5 秒后把原因写在页面上，别让人对着死按钮猜。 */
+  window.__ghLensBoot = false;
+  window.setTimeout(function () {
+    if (window.__ghLensBoot) return;
+    var box = document.getElementById('content');
+    if (!box) return;
+    box.innerHTML =
+      '<div class="err">' +
+      '<b>页面脚本没有加载成功，所以按钮点了都没反应。</b><br><br>' +
+      '最常见的原因：<b>本地服务还是改动前的旧进程</b>（新增的 <code>query.mjs</code> 要重启服务才能访问）。' +
+      '<br><br>处理：关掉这个窗口 → 回到 gh-lens 目录重新双击 <code>serve.cmd</code> → 刷新本页。' +
+      '<br><br>仍然不行就按 F12 看 Console 的具体报错。' +
+      '</div>';
+  }, 2500);
+</script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>24 点 · 算数游戏</title>
+<style>
+  :root {
+    --bg: #080b11;
+    --bg2: #0d121b;
+    --stroke: rgba(255, 255, 255, 0.09);
+    --stroke-strong: rgba(255, 255, 255, 0.18);
+    --text: #e9eef7;
+    --muted: #8b97a9;
+    --brand-a: #7aa2ff;
+    --brand-b: #4f7cff;
+    --ok: #46d98a;
+    --bad: #ff6b81;
+    --warn: #ffc857;
+    --radius: 18px;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 28px 20px calc(28px + env(safe-area-inset-bottom));
+    color: var(--text);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(900px 520px at 50% -18%, rgba(79, 124, 255, 0.28), transparent 62%),
+      radial-gradient(700px 480px at 88% 108%, rgba(122, 162, 255, 0.12), transparent 60%),
+      linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    background-attachment: fixed;
+  }
+
+  .app {
+    width: min(1120px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---------- 顶部 ---------- */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo {
+    width: 46px;
+    height: 46px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
+    background: linear-gradient(150deg, var(--brand-a), var(--brand-b));
+    box-shadow: 0 10px 26px rgba(79, 124, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+
+  .brand h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+  }
+
+  .brand p {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .seg {
+    margin-left: auto;
+    display: flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--stroke);
+  }
+
+  .seg button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12.5px;
+    padding: 7px 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.18s ease, background 0.18s ease;
+  }
+
+  .seg button:hover { color: var(--text); }
+
+  .seg button[aria-pressed="true"] {
+    color: #fff;
+    background: linear-gradient(160deg, rgba(122, 162, 255, 0.9), rgba(79, 124, 255, 0.9));
+    box-shadow: 0 4px 14px rgba(79, 124, 255, 0.4);
+  }
+
+  /* ---------- 统计 ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .stat {
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--stroke);
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(8px);
+  }
+
+  .stat span {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+  }
+
+  .stat strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 20px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.3px;
+  }
+
+  #streak.hot { color: var(--warn); text-shadow: 0 0 18px rgba(255, 200, 87, 0.55); }
+
+  /* ---------- 数字牌 ---------- */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .tile {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--stroke-strong);
+    border-radius: var(--radius);
+    font: inherit;
+    font-size: clamp(28px, 8.5vw, 42px);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+    color: var(--text);
+    cursor: pointer;
+    background:
+      linear-gradient(158deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.025) 55%),
+      rgba(20, 26, 38, 0.9);
+    box-shadow:
+      0 12px 30px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at 50% 120%, rgba(122, 162, 255, 0.35), transparent 62%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .tile:hover {
+    transform: translateY(-4px);
+    border-color: rgba(122, 162, 255, 0.55);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(122, 162, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .tile:hover::after { opacity: 1; }
+
+  .tile:active { transform: scale(0.955); }
+
+  .tile.hit { animation: press 0.22s ease; }
+
+  @keyframes press {
+    0% { transform: scale(1); }
+    45% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+
+  .tiles.done .tile {
+    border-color: rgba(70, 217, 138, 0.6);
+    box-shadow: 0 0 0 1px rgba(70, 217, 138, 0.35), 0 12px 34px rgba(70, 217, 138, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    animation: flash 0.55s ease;
+  }
+
+  @keyframes flash {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  /* ---------- 输入 ---------- */
+  .composer { position: relative; }
+
+  .composer input {
+    width: 100%;
+    padding: 16px 52px 16px 16px;
+    font: inherit;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 17px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid var(--stroke-strong);
+    border-radius: 14px;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .composer input::placeholder { color: #6b7789; }
+
+  .composer input:focus {
+    border-color: rgba(122, 162, 255, 0.75);
+    background: rgba(122, 162, 255, 0.06);
+    box-shadow: 0 0 0 4px rgba(79, 124, 255, 0.16);
+  }
+
+  .composer .caret {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: #5f6b7d;
+    pointer-events: none;
+  }
+
+  .composer.shake { animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-6px); }
+    40%, 60% { transform: translateX(6px); }
+  }
+
+  /* ---------- 按钮 ---------- */
+  .actions {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  .btn {
+    padding: 13px 10px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 550;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--stroke-strong);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .btn:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.28); }
+  .btn:active { transform: scale(0.975); }
+
+  .btn.primary {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(158deg, var(--brand-a), var(--brand-b));
+    box-shadow: 0 10px 26px rgba(79, 124, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  .btn.primary:hover {
+    background: linear-gradient(158deg, #8bb0ff, #5b87ff);
+    box-shadow: 0 14px 32px rgba(79, 124, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+
+  /* ---------- 反馈 ---------- */
+  .feedback {
+    min-height: 24px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+    transition: color 0.2s ease;
+  }
+
+  .feedback.ok { color: var(--ok); }
+  .feedback.bad { color: var(--bad); }
+  .feedback.warn { color: var(--warn); }
+
+  .hintbox {
+    display: none;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 15px;
+    color: var(--warn);
+    background: rgba(255, 200, 87, 0.09);
+    border: 1px solid rgba(255, 200, 87, 0.32);
+    animation: rise 0.3s ease both;
+  }
+
+  .hintbox.show { display: block; }
+
+  .lastline {
+    min-height: 18px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .lastline b {
+    color: #c8d3e6;
+    font-family: ui-monospace, Consolas, monospace;
+    font-weight: 500;
+  }
+
+  footer {
+    font-size: 12px;
+    line-height: 1.75;
+    color: #6f7b8d;
+  }
+
+  footer b { color: #9aa7ba; font-weight: 600; }
+
+  kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--stroke-strong);
+    background: rgba(255, 255, 255, 0.06);
+    font-family: inherit;
+    font-size: 11px;
+    color: #b8c3d4;
+  }
+
+  /* ---------- 屏幕键盘 ---------- */
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 536px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .play {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 20px;
+    border-radius: 24px;
+    border: 1px solid var(--stroke);
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
+  }
+
+  .key {
+    height: 104px;
+    padding: 0;
+    font: inherit;
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--stroke-strong);
+    border-radius: 18px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .key:hover {
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .key:active {
+    transform: scale(0.95);
+    background: rgba(122, 162, 255, 0.24);
+  }
+
+  .key.wide { grid-column: span 2; }
+  .key.fn { font-size: 30px; color: #c8d3e6; }
+
+  .key.accent {
+    font-size: 26px;
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(158deg, var(--brand-a), var(--brand-b));
+    box-shadow: 0 8px 20px rgba(79, 124, 255, 0.35);
+  }
+
+  .key.accent:hover { background: linear-gradient(158deg, #8bb0ff, #5b87ff); }
+
+  @media (max-width: 1040px) {
+    .app { width: min(620px, 100%); }
+    .shell { grid-template-columns: 1fr; }
+    .keypad { order: 2; }
+    .key { height: 78px; font-size: 27px; }
+    .key.fn { font-size: 23px; }
+    .key.accent { font-size: 21px; }
+  }
+
+  @media (max-width: 430px) {
+    .actions { grid-template-columns: 1fr 1fr; }
+    .btn.primary { grid-column: 1 / -1; }
+    .stats { gap: 8px; }
+    .stat { padding: 9px 11px; }
+    .stat strong { font-size: 17px; }
+    .tiles { gap: 9px; }
+    .brand p { display: none; }
+    .keypad { gap: 10px; padding: 12px; }
+    .key { height: 60px; font-size: 22px; }
+    .key.fn { font-size: 18px; }
+    .key.accent { font-size: 17px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="brand">
+    <div class="logo" aria-hidden="true">24</div>
+    <div>
+      <h1>24 点</h1>
+      <p>四个数字，各用一次，算出 24</p>
+    </div>
+    <div class="seg" id="level" role="group" aria-label="难度">
+      <button type="button" data-max="9" aria-pressed="false">简单</button>
+      <button type="button" data-max="13" aria-pressed="true">标准</button>
+    </div>
+  </header>
+
+  <div class="shell">
+  <div class="play">
+
+  <section class="stats" aria-label="战绩">
+    <div class="stat"><span>已解出</span><strong id="solved">0</strong></div>
+    <div class="stat"><span>连胜</span><strong id="streak">0</strong></div>
+    <div class="stat"><span>用时</span><strong id="timer">0s</strong></div>
+  </section>
+
+  <section class="tiles" id="tiles" aria-label="本局数字"></section>
+
+  <div class="composer" id="composer">
+    <input id="expr" type="text" inputmode="text" autocomplete="off" spellcheck="false"
+           maxlength="120" placeholder="输入算式，例如 (8-2)*4" aria-label="算式" />
+    <span class="caret" aria-hidden="true">Enter</span>
+  </div>
+
+  <div class="actions">
+    <button id="submit" class="btn primary" type="button">提交</button>
+    <button id="next" class="btn" type="button">换一题</button>
+    <button id="hintBtn" class="btn" type="button">提示</button>
+    <button id="clear" class="btn" type="button">清空</button>
+  </div>
+
+  <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+  <div class="hintbox" id="hint"></div>
+  <div class="lastline" id="lastline"></div>
+
+  </div>
+
+  <aside class="keypad" id="keypad" aria-label="屏幕键盘">
+    <button type="button" class="key fn" data-ins="(" aria-label="左括号">(</button>
+    <button type="button" class="key fn" data-ins=")" aria-label="右括号">)</button>
+    <button type="button" class="key fn" data-act="back" aria-label="退格">⌫</button>
+    <button type="button" class="key fn" data-act="clear" aria-label="清空">C</button>
+
+    <button type="button" class="key" data-ins="7">7</button>
+    <button type="button" class="key" data-ins="8">8</button>
+    <button type="button" class="key" data-ins="9">9</button>
+    <button type="button" class="key fn" data-ins="÷" aria-label="除">÷</button>
+
+    <button type="button" class="key" data-ins="4">4</button>
+    <button type="button" class="key" data-ins="5">5</button>
+    <button type="button" class="key" data-ins="6">6</button>
+    <button type="button" class="key fn" data-ins="×" aria-label="乘">×</button>
+
+    <button type="button" class="key" data-ins="1">1</button>
+    <button type="button" class="key" data-ins="2">2</button>
+    <button type="button" class="key" data-ins="3">3</button>
+    <button type="button" class="key fn" data-ins="−" aria-label="减">−</button>
+
+    <button type="button" class="key wide" data-ins="0">0</button>
+    <button type="button" class="key fn" data-ins="+" aria-label="加">+</button>
+    <button type="button" class="key accent" data-act="submit">提交</button>
+  </aside>
+
+  </div>
+
+  <footer>
+    <b>规则</b>：四个数字各用一次，只能用 + − × ÷ 和括号，结果正好 24。<br />
+    点数字牌可直接插入算式，按 <kbd>Enter</kbd> 提交，<kbd>Esc</kbd> 清空。允许中间结果是分数，例如 <b>8÷(3−8÷3)=24</b>。
+  </footer>
+</main>
+
+<script>
+// ==SOLVER-START==
+/* 纯逻辑区：分数运算 / 求解器 / 表达式校验。不依赖 DOM，可独立测试。 */
+
+/* 最大公约数 */
+function gcd(a, b) {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b) {
+    const t = a % b;
+    a = b;
+    b = t;
+  }
+  return a || 1;
+}
+
+/* 构造既约分数；分母为 0 返回 null */
+function rat(n, d) {
+  if (d === 0) return null;
+  if (d < 0) {
+    n = -n;
+    d = -d;
+  }
+  const g = gcd(n, d);
+  return { n: n / g, d: d / g };
+}
+
+function rAdd(a, b) {
+  return rat(a.n * b.d + b.n * a.d, a.d * b.d);
+}
+function rSub(a, b) {
+  return rat(a.n * b.d - b.n * a.d, a.d * b.d);
+}
+function rMul(a, b) {
+  return rat(a.n * b.n, a.d * b.d);
+}
+function rDiv(a, b) {
+  if (b.n === 0) return null;
+  return rat(a.n * b.d, a.d * b.n);
+}
+function rEq24(r) {
+  return !!r && r.n === 24 * r.d;
+}
+function rText(r) {
+  if (!r) return '无定义';
+  return r.d === 1 ? String(r.n) : r.n + '/' + r.d;
+}
+
+/* 去掉最外层多余括号，便于展示 */
+function unwrap(e) {
+  if (e.length > 1 && e.startsWith('(') && e.endsWith(')')) {
+    let depth = 0;
+    for (let i = 0; i < e.length; i++) {
+      if (e[i] === '(') depth++;
+      else if (e[i] === ')') {
+        depth--;
+        if (depth === 0 && i < e.length - 1) return e;
+      }
+    }
+    return e.slice(1, -1);
+  }
+  return e;
+}
+
+/* 递归搜索：每次挑两个数合并，直到只剩一个并判断是否为 24 */
+function search(items) {
+  if (items.length === 1) return rEq24(items[0].r) ? unwrap(items[0].e) : null;
+  for (let i = 0; i < items.length; i++) {
+    for (let j = 0; j < items.length; j++) {
+      if (i === j) continue;
+      const a = items[i];
+      const b = items[j];
+      const rest = items.filter((_, k) => k !== i && k !== j);
+      const cands = [
+        { r: rAdd(a.r, b.r), e: '(' + a.e + '+' + b.e + ')' },
+        { r: rMul(a.r, b.r), e: '(' + a.e + '×' + b.e + ')' },
+        { r: rSub(a.r, b.r), e: '(' + a.e + '−' + b.e + ')' },
+      ];
+      const dv = rDiv(a.r, b.r);
+      if (dv) cands.push({ r: dv, e: '(' + a.e + '÷' + b.e + ')' });
+      for (const c of cands) {
+        if (!c.r) continue;
+        const found = search(rest.concat([c]));
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+/* 求一组数字的 24 点解，返回算式字符串或 null */
+function solve(nums) {
+  return search(nums.map((v) => ({ r: rat(v, 1), e: String(v) })));
+}
+
+/* 随机生成一局一定有解的四数字 */
+function generatePuzzle(max, min) {
+  max = Math.floor(Number(max));
+  min = Math.floor(Number(min));
+  if (!Number.isFinite(max) || max < 1) max = 13;
+  if (!Number.isFinite(min) || min < 1) min = 1;
+  if (min > max) {
+    const swap = min;
+    min = max;
+    max = swap;
+  }
+  for (let t = 0; t < 5000; t++) {
+    const nums = [];
+    for (let k = 0; k < 4; k++) nums.push(min + Math.floor(Math.random() * (max - min + 1)));
+    if (solve(nums)) return nums;
+  }
+  return [3, 3, 8, 8];
+}
+
+/* 词法分析：兼容全角符号与 × ÷ x X */
+const NORM = {
+  '＋': '+', '－': '−', '−': '-', '—': '-', '–': '-',
+  '＊': '*', '×': '*', '✕': '*', 'x': '*', 'X': '*',
+  '／': '/', '÷': '/',
+  '（': '(', '）': ')',
+};
+
+const MAX_EXPR_LENGTH = 120;
+const MAX_PAREN_DEPTH = 24;
+
+function tokenize(src) {
+  if (src.length > MAX_EXPR_LENGTH) {
+    return { error: '算式太长了（最多 ' + MAX_EXPR_LENGTH + ' 个字符）。' };
+  }
+  const toks = [];
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (/\s/.test(c)) {
+      i++;
+      continue;
+    }
+    if (c >= '0' && c <= '9') {
+      let j = i;
+      while (j < src.length && src[j] >= '0' && src[j] <= '9') j++;
+      toks.push({ t: 'num', v: parseInt(src.slice(i, j), 10) });
+      i = j;
+      continue;
+    }
+    const c2 = NORM[c] || c;
+    if (c2 === '+' || c2 === '-' || c2 === '*' || c2 === '/') {
+      toks.push({ t: 'op', v: c2 });
+      i++;
+      continue;
+    }
+    if (c2 === '(' || c2 === ')') {
+      toks.push({ t: c2 });
+      i++;
+      continue;
+    }
+    return { error: '无法识别的字符「' + c + '」' };
+  }
+  return { tokens: toks };
+}
+
+/* 递归下降求值，全程使用精确分数，记录用到的数字 */
+function parseEval(tokens) {
+  let p = 0;
+  let depth = 0;
+  const used = [];
+  const fail = (m) => {
+    throw new Error(m);
+  };
+  const peek = () => tokens[p];
+
+  function parseExpr() {
+    let v = parseTerm();
+    while (peek() && peek().t === 'op' && (peek().v === '+' || peek().v === '-')) {
+      const op = tokens[p++].v;
+      const r = parseTerm();
+      v = op === '+' ? rAdd(v, r) : rSub(v, r);
+      if (!v) fail('中间结果出现了除以 0');
+    }
+    return v;
+  }
+
+  function parseTerm() {
+    let v = parseFactor();
+    while (peek() && peek().t === 'op' && (peek().v === '*' || peek().v === '/')) {
+      const op = tokens[p++].v;
+      const r = parseFactor();
+      v = op === '*' ? rMul(v, r) : rDiv(v, r);
+      if (!v) fail('中间结果出现了除以 0');
+    }
+    return v;
+  }
+
+  function parseFactor() {
+    const tk = peek();
+    if (!tk) fail('算式不完整');
+    if (tk.t === 'op' && tk.v === '-') {
+      p++;
+      return rMul(rat(-1, 1), parseFactor());
+    }
+    if (tk.t === 'op' && tk.v === '+') {
+      p++;
+      return parseFactor();
+    }
+    if (tk.t === 'num') {
+      p++;
+      used.push(tk.v);
+      return rat(tk.v, 1);
+    }
+    if (tk.t === '(') {
+      p++;
+      if (++depth > MAX_PAREN_DEPTH) fail('括号嵌套太深了。');
+      const v = parseExpr();
+      const nx = peek();
+      if (!nx || nx.t !== ')') fail('括号不匹配');
+      p++;
+      depth--;
+      return v;
+    }
+    fail('「' + tk.t + '」位置不合法');
+  }
+
+  const value = parseExpr();
+  if (p < tokens.length) fail('算式结尾有多余内容');
+  return { value: value, used: used };
+}
+
+/* 校验用户算式：返回 { ok, message } */
+function validateExpression(input, nums) {
+  if (!Array.isArray(nums) || nums.length !== 4) {
+    return { ok: false, message: '题目数据异常，请换一题。' };
+  }
+  const src = String(input == null ? '' : input).trim();
+  if (!src) return { ok: false, message: '请先输入算式。' };
+
+  const lex = tokenize(src);
+  if (lex.error) return { ok: false, message: lex.error };
+  if (!lex.tokens.length) return { ok: false, message: '请先输入算式。' };
+
+  let res;
+  try {
+    res = parseEval(lex.tokens);
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+
+  const want = nums.slice().sort((x, y) => x - y).join(',');
+  const got = res.used.slice().sort((x, y) => x - y).join(',');
+  if (want !== got) {
+    return {
+      ok: false,
+      message: '必须把四个数字各用一次（你用的是：' + (res.used.join('、') || '无') + '）。',
+    };
+  }
+  if (!rEq24(res.value)) {
+    return { ok: false, message: '结果是 ' + rText(res.value) + '，不是 24。' };
+  }
+  return { ok: true, message: '正确！' };
+}
+/* 在 pos 处插入文本；越界按末尾处理。返回新值与新的光标位置。 */
+function insertText(text, pos, t) {
+  const v = String(text == null ? '' : text);
+  const add = String(t == null ? '' : t);
+  let p = Number(pos);
+  if (!Number.isFinite(p)) p = v.length;
+  p = Math.max(0, Math.min(Math.floor(p), v.length));
+  return { value: v.slice(0, p) + add + v.slice(p), caret: p + add.length };
+}
+
+/* 删除 pos 前的一个字符；pos 为 0 时不动。返回新值与新的光标位置。 */
+function deleteBack(text, pos) {
+  const v = String(text == null ? '' : text);
+  let p = Number(pos);
+  if (!Number.isFinite(p)) p = v.length;
+  p = Math.max(0, Math.min(Math.floor(p), v.length));
+  if (p === 0) return { value: v, caret: 0 };
+  return { value: v.slice(0, p - 1) + v.slice(p), caret: p - 1 };
+}
+
+// ==SOLVER-END==
+
+/* ---------- 界面逻辑 ---------- */
+(function () {
+  var el = {
+    tiles: document.getElementById('tiles'),
+    expr: document.getElementById('expr'),
+    feedback: document.getElementById('feedback'),
+    hint: document.getElementById('hint'),
+    solved: document.getElementById('solved'),
+    streak: document.getElementById('streak'),
+    timer: document.getElementById('timer'),
+    level: document.getElementById('level'),
+    composer: document.getElementById('composer'),
+    submit: document.getElementById('submit'),
+    next: document.getElementById('next'),
+    hintBtn: document.getElementById('hintBtn'),
+    clear: document.getElementById('clear'),
+    lastline: document.getElementById('lastline'),
+    keypad: document.getElementById('keypad')
+  };
+
+  var current = [];
+  var solvedCount = 0;
+  var streak = 0;
+  var maxNum = 13;
+  var startedAt = 0;
+  var tick = null;
+  var locked = false;
+  var pendingNext = null;
+  var caret = 0;
+
+  var STORE_KEY = 'twenty-four/stats/v1';
+
+  function safe(fn) {
+    return function () {
+      try {
+        return fn.apply(this, arguments);
+      } catch (err) {
+        setMsg('出了点问题：' + (err && err.message ? err.message : '未知错误'), 'bad');
+        if (window.console) window.console.error(err);
+      }
+    };
+  }
+
+  function cancelPending() {
+    if (pendingNext) {
+      clearTimeout(pendingNext);
+      pendingNext = null;
+    }
+  }
+
+  function loadStats() {
+    try {
+      var raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (o && typeof o.solved === 'number' && isFinite(o.solved) && o.solved >= 0) {
+        solvedCount = Math.floor(o.solved);
+      }
+    } catch (e) {
+      /* 隐私模式或数据损坏：忽略 */
+    }
+  }
+
+  function saveStats() {
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify({ solved: solvedCount }));
+    } catch (e) {
+      /* 存储不可用：静默跳过 */
+    }
+  }
+
+  function setMsg(text, kind) {
+    el.feedback.textContent = text || '';
+    el.feedback.className = 'feedback' + (kind ? ' ' + kind : '');
+  }
+
+  function fmtTime(ms) {
+    var s = Math.floor(ms / 1000);
+    if (s < 60) return s + 's';
+    return Math.floor(s / 60) + 'm' + (s % 60) + 's';
+  }
+
+  function startTimer() {
+    startedAt = Date.now();
+    if (tick) clearInterval(tick);
+    el.timer.textContent = '0s';
+    tick = setInterval(function () {
+      el.timer.textContent = fmtTime(Date.now() - startedAt);
+    }, 250);
+  }
+
+  function stopTimer() {
+    if (tick) clearInterval(tick);
+    tick = null;
+  }
+
+  function bumpStreak() {
+    el.streak.textContent = String(streak);
+    if (streak >= 3) el.streak.classList.add('hot');
+    else el.streak.classList.remove('hot');
+  }
+
+  function renderTiles() {
+    el.tiles.innerHTML = '';
+    el.tiles.classList.remove('done');
+    current.forEach(function (n) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tile';
+      b.textContent = String(n);
+      b.setAttribute('aria-label', '插入数字 ' + n);
+      b.addEventListener('click', function () {
+        if (locked) return;
+        insertAtCaret(String(n));
+        b.classList.add('hit');
+        setTimeout(function () { b.classList.remove('hit'); }, 220);
+      });
+      el.tiles.appendChild(b);
+    });
+  }
+
+  function newRound() {
+    cancelPending();
+    locked = false;
+    current = generatePuzzle(maxNum, 1);
+    renderTiles();
+    el.expr.value = '';
+    caret = 0;
+    el.hint.classList.remove('show');
+    el.hint.textContent = '';
+    setMsg('');
+    startTimer();
+    el.expr.focus();
+  }
+
+  function shake() {
+    el.composer.classList.remove('shake');
+    void el.composer.offsetWidth;
+    el.composer.classList.add('shake');
+    setTimeout(function () { el.composer.classList.remove('shake'); }, 420);
+  }
+
+  function showLast(expr) {
+    if (!el.lastline) return;
+    el.lastline.textContent = '';
+    var lab = document.createElement('span');
+    lab.textContent = '刚解出：';
+    var val = document.createElement('b');
+    val.textContent = expr;
+    el.lastline.appendChild(lab);
+    el.lastline.appendChild(val);
+  }
+
+  function onSubmit() {
+    if (locked) return;
+    var res = validateExpression(el.expr.value, current);
+    if (res.ok) {
+      locked = true;
+      solvedCount++;
+      streak++;
+      el.solved.textContent = String(solvedCount);
+      bumpStreak();
+      stopTimer();
+      el.tiles.classList.add('done');
+      showLast(el.expr.value);
+      saveStats();
+      setMsg('正确！用时 ' + el.timer.textContent, 'ok');
+      cancelPending();
+      pendingNext = setTimeout(function () {
+        pendingNext = null;
+        newRound();
+      }, 1050);
+    } else {
+      streak = 0;
+      bumpStreak();
+      setMsg(res.message, 'bad');
+      shake();
+    }
+  }
+
+  var onSubmitSafe = safe(onSubmit);
+
+  el.submit.addEventListener('click', onSubmitSafe);
+
+  el.next.addEventListener('click', safe(function () {
+    streak = 0;
+    bumpStreak();
+    newRound();
+  }));
+
+  el.clear.addEventListener('click', safe(function () {
+    el.expr.value = '';
+    caret = 0;
+    setMsg('');
+    el.expr.focus();
+  }));
+
+  el.hintBtn.addEventListener('click', safe(function () {
+    var ans = null;
+    try {
+      ans = solve(current);
+    } catch (err) {
+      ans = null;
+    }
+    if (ans) {
+      el.hint.textContent = '参考答案：' + ans + ' = 24';
+      el.hint.classList.add('show');
+      setMsg('已显示答案，本题不计连胜。', 'warn');
+      streak = 0;
+      bumpStreak();
+    } else {
+      setMsg('这组数字无解，换一题吧。', 'warn');
+    }
+  }));
+
+  el.level.addEventListener('click', safe(function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('button[data-max]') : null;
+    if (!btn) return;
+    Array.prototype.forEach.call(el.level.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+    });
+    maxNum = parseInt(btn.getAttribute('data-max'), 10) || 13;
+    streak = 0;
+    bumpStreak();
+    newRound();
+  }));
+
+  el.expr.addEventListener('input', function () {
+    var v = el.expr.value;
+    if (v.indexOf('\n') !== -1 || v.indexOf('\r') !== -1 || v.indexOf('\t') !== -1) {
+      el.expr.value = v.split('\n').join(' ').split('\r').join(' ').split('\t').join(' ');
+    }
+  });
+
+  el.expr.addEventListener('keydown', safe(function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onSubmitSafe();
+    } else if (e.key === 'Escape') {
+      el.expr.value = '';
+      caret = 0;
+      setMsg('');
+    }
+  }));
+
+  function syncCaret(pos) {
+    caret = pos;
+    try {
+      el.expr.setSelectionRange(pos, pos);
+    } catch (e) {
+      /* 未聚焦时部分浏览器不允许设置选区 */
+    }
+  }
+
+  /* 在光标处插入，而不是永远追加到末尾 */
+  function insertAtCaret(t) {
+    if (locked) return;
+    var r = insertText(el.expr.value, caret, t);
+    el.expr.value = r.value;
+    el.expr.focus();
+    syncCaret(r.caret);
+  }
+
+  function backspaceAtCaret() {
+    if (locked) return;
+    var r = deleteBack(el.expr.value, caret);
+    el.expr.value = r.value;
+    el.expr.focus();
+    syncCaret(r.caret);
+  }
+
+  function trackCaret() {
+    try {
+      if (typeof el.expr.selectionStart === 'number') caret = el.expr.selectionStart;
+    } catch (e) {
+      /* 忽略 */
+    }
+  }
+
+  el.expr.addEventListener('blur', trackCaret);
+  el.expr.addEventListener('keyup', trackCaret);
+  el.expr.addEventListener('click', trackCaret);
+  el.expr.addEventListener('select', trackCaret);
+
+  document.addEventListener('selectionchange', function () {
+    if (document.activeElement === el.expr) trackCaret();
+  });
+
+  if (el.keypad) {
+    el.keypad.addEventListener('click', safe(function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('button') : null;
+      if (!btn) return;
+
+      var ins = btn.getAttribute('data-ins');
+      if (ins !== null) {
+        insertAtCaret(ins);
+        return;
+      }
+
+      var act = btn.getAttribute('data-act');
+      if (act === 'back') {
+        backspaceAtCaret();
+        return;
+      }
+      if (act === 'clear') {
+        el.expr.value = '';
+        caret = 0;
+        setMsg('');
+        el.expr.focus();
+        return;
+      }
+      if (act === 'submit') {
+        onSubmitSafe();
+      }
+    }));
+  }
+
+  try {
+    loadStats();
+    el.solved.textContent = String(solvedCount);
+  } catch (e) {
+    /* 忽略持久化失败 */
+  }
+
+  try {
+    newRound();
+  } catch (e) {
+    setMsg('初始化失败：' + (e && e.message ? e.message : '未知错误'), 'bad');
+  }
+})();
+</script>
+</body>
+</html>
