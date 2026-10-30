@@ -3014,8 +3014,16 @@ function undo() {
     b.undo();
     state.moveCount = Math.max(0, state.moveCount - 1);
   }
-  state.moveLog.pop();
-  if (isAI && state.moveLog.length > 0) state.moveLog.pop();
+  // 关键：moveRecords 是保存棋谱用的那份数据，必须和棋盘历史严格对齐。
+  // 只 pop moveLog 会导致存下来的棋谱包含已撤销的着法，回放时棋子位置全乱。
+  // 这里直接按棋盘历史的长度截断，即使之前已不同步也能一次性纠正。
+  const syncedLen = b.history.length;
+  if (state.moveRecords.length > syncedLen) {
+    state.moveRecords.length = syncedLen;
+  }
+  if (state.moveLog.length > syncedLen) {
+    state.moveLog.length = syncedLen;
+  }
 
   state.gameOver = false;
   state.selected = null;

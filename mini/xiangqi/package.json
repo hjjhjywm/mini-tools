@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "中国象棋 - 人机对战 / 残局挑战",
   "scripts": {
-    "test": "node tests/rules.test.mjs && node tests/ai.test.mjs && node tests/ailegal.mjs && node tests/anim.test.mjs && node tests/endgames.test.mjs && node tests/endgame-flow.mjs && node tests/repetition.test.mjs && node tests/replay.test.mjs && node tests/replay-fen.test.mjs && node tests/ui.smoke.mjs && node tests/ui.flow.mjs && node build-single.js && node tests/single.test.mjs",
+    "test": "node tests/rules.test.mjs && node tests/ai.test.mjs && node tests/ailegal.mjs && node tests/anim.test.mjs && node tests/endgames.test.mjs && node tests/endgame-flow.mjs && node tests/repetition.test.mjs && node tests/replay.test.mjs && node tests/replay-fen.test.mjs && node tests/undo-sync.test.mjs && node tests/ui.smoke.mjs && node tests/ui.flow.mjs && node build-single.js && node tests/single.test.mjs",
     "selfplay": "node tests/selfplay.mjs",
     "test:difficulty": "node tests/difficulty.test.mjs",
     "test:solvable": "node tests/endgame-solvable.mjs",
