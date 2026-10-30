@@ -536,3 +536,13 @@ html, body {
   from { opacity: 0; transform: translate(-50%, 10px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+.replay-start-info {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 8px;
+  background: #2a241e;
+  border-radius: 5px;
+  border-left: 2px solid #6a5c4c;
+}
+.replay-start-info[hidden] { display: none !important; }

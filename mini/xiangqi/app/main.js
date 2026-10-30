@@ -1,7 +1,7 @@
 import { Board, RED, BLACK, PIECE_CHARS, pieceSide, opposite } from './engine.js';
 import { chooseMove, evaluate, DIFFICULTIES } from './ai.js';
 import { ENDGAMES } from './endgames.js';
-import { loadAll, addGame, removeGame, fromImport, Replayer, toJson } from './replay.js';
+import { loadAll, addGame, removeGame, fromImport, Replayer, toJson, normalizeFen } from './replay.js';
 // 音效模块的函数名自带前缀，打包内联后与其它模块不冲突
 import {
   playSound,
@@ -930,6 +930,18 @@ function loadReplay(game) {
   document.getElementById('replayControls').hidden = false;
   document.getElementById('replayTitle').textContent = game.title || '未命名对局';
 
+  // 标注起始局面类型：残局开局只有几个子，不说明会被误当成"棋子没画出来"
+  const startBoard = Board.fromFen(normalizeFen(game.startFen));
+  const startPieces = startBoard.cells.filter(Boolean).length;
+  const isFullBoard = startPieces >= 32;
+  const modeLabel = game.mode === 'endgame' ? '残局' : (game.mode === 'pvp' ? '双人' : '人机');
+  const startLabel = isFullBoard ? '满盘开局' : `残局开局（${startPieces} 枚棋子）`;
+  const infoEl = document.getElementById('replayStartInfo');
+  if (infoEl) {
+    infoEl.textContent = `${modeLabel} · ${startLabel}`;
+    infoEl.hidden = false;
+  }
+
   const slider = document.getElementById('replaySlider');
   slider.max = String(state.replayer.total);
   slider.value = '0';
@@ -938,7 +950,7 @@ function loadReplay(game) {
   if (!state.replayer.playable) {
     document.getElementById('replayStep').textContent =
       '这份棋谱只有记谱文字，无法重放棋盘（导入时缺少坐标信息）';
-    state.board = Board.fromFen(game.startFen || new Board().toFen());
+    state.board = Board.fromFen(normalizeFen(game.startFen));
     render();
     return;
   }

@@ -76,7 +76,7 @@ export function addGame(game) {
     date: game.date || new Date().toISOString().slice(0, 16).replace('T', ' '),
     mode: game.mode || 'pve',
     result: game.result || '未分胜负',
-    startFen: game.startFen || 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r',
+    startFen: normalizeFen(game.startFen),
     moves: game.moves || [],
   };
 
@@ -109,6 +109,36 @@ export function toJson(game) {
   return JSON.stringify(game, null, 2);
 }
 
+const START_FEN_DEFAULT = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r';
+
+/**
+ * 校验并补全 FEN。
+ * 导入的棋谱常常缺 startFen 或写成空串，直接拿去构造棋盘会崩溃，
+ * 这里统一兜底成标准开局。
+ */
+export function normalizeFen(fen) {
+  if (typeof fen !== 'string') return START_FEN_DEFAULT;
+  const t = fen.trim();
+  if (!t) return START_FEN_DEFAULT;
+  const parts = t.split(/\s+/);
+  if (parts.length < 1) return START_FEN_DEFAULT;
+  const rows = parts[0].split('/');
+  // 必须是 10 行
+  if (rows.length !== 10) return START_FEN_DEFAULT;
+  // 每行展开后必须正好 9 列
+  for (const row of rows) {
+    let cols = 0;
+    for (const ch of row) {
+      if (ch >= '0' && ch <= '9') cols += Number(ch);
+      else cols += 1;
+    }
+    if (cols !== 9) return START_FEN_DEFAULT;
+  }
+  // 走子方必须是 r/b
+  const side = (parts[1] || 'r').toLowerCase();
+  return parts[0] + ' ' + (side === 'b' ? 'b' : 'r');
+}
+
 /**
  * 导入：支持自带格式 JSON，也支持简易文本棋谱
  * 简易文本示例："炮二平五 马8进7 马二进三"
@@ -126,7 +156,8 @@ export function fromImport(text) {
       if (!game || !Array.isArray(game.moves)) {
         return { ok: false, error: 'JSON 里没有 moves 数组' };
       }
-      return { ok: true, game: { ...game, id: makeId() } };
+      // 关键：补全 startFen，否则 Replayer 用 undefined 构造棋盘会直接崩溃
+      return { ok: true, game: { ...game, startFen: normalizeFen(game.startFen), id: makeId() } };
     } catch (e) {
       return { ok: false, error: 'JSON 解析失败：' + e.message };
     }
@@ -152,7 +183,7 @@ export function fromImport(text) {
       date: new Date().toISOString().slice(0, 16).replace('T', ' '),
       mode: 'import',
       result: '未知',
-      startFen: 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r',
+      startFen: START_FEN_DEFAULT,
       moves,
     },
   };
@@ -205,7 +236,8 @@ export class Replayer {
    * @param {(fen:string)=>any} BoardCtor 棋盘构造器（由调用方注入，避免循环依赖）
    */
   boardAt(n, BoardCtor) {
-    const b = BoardCtor.fromFen(this.game.startFen);
+    // 兜底：即使 game.startFen 缺失/非法也不让回放崩掉
+    const b = BoardCtor.fromFen(normalizeFen(this.game.startFen));
     const upto = Math.min(n, this.total);
     for (let i = 0; i < upto; i++) {
       const s = this.steps[i];
