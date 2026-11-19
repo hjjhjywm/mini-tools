@@ -123,6 +123,19 @@
       </section>
 
       <section class="group">
+        <button class="btn teach-btn" id="btnTeach">🎓 教学模式</button>
+        <div class="teach-panel" id="teachPanel" hidden>
+          <div class="teach-head">
+            <span class="teach-title">🎓 教练讲解</span>
+            <button class="hint-close" id="teachClose" title="关闭">×</button>
+          </div>
+          <div class="teach-presets" id="teachPresets"></div>
+          <div class="teach-answer" id="teachAnswer"></div>
+          <div class="teach-status" id="teachStatus"></div>
+        </div>
+      </section>
+
+      <section class="group">
         <button class="btn hint-btn" id="btnGetHint">💡 求助：下一步怎么走</button>
         <div class="hint-panel" id="hintPanel" hidden>
           <div class="hint-head">
@@ -144,6 +157,43 @@
         <div class="ai-meta" id="aiMeta">—</div>
       </section>
     </aside>
+  </div>
+
+  <div class="overlay" id="teachSetupOverlay" hidden>
+    <div class="overlay-card teach-setup">
+      <h2>教学模式设置</h2>
+      <p class="setup-tip">填入大模型 API 配置，即可让 AI 教练用自然语言讲解棋局。<br>
+         Key 只存在你的浏览器本地，不会上传到任何服务器（除了你填的 API 地址）。</p>
+
+      <label class="setup-row">
+        <span>API 地址</span>
+        <input type="text" id="cfgBaseUrl" placeholder="https://api.deepseek.com/v1">
+      </label>
+
+      <label class="setup-row">
+        <span>API Key</span>
+        <input type="password" id="cfgApiKey" placeholder="sk-...">
+      </label>
+
+      <label class="setup-row">
+        <span>模型</span>
+        <input type="text" id="cfgModel" placeholder="deepseek-chat">
+      </label>
+
+      <label class="setup-row">
+        <span>讲解风格</span>
+        <select id="cfgStyle">
+          <option value="beginner">入门（通俗易懂）</option>
+          <option value="intermediate" selected>进阶（用基本术语）</option>
+          <option value="advanced">高手（专业棋理）</option>
+        </select>
+      </label>
+
+      <div class="setup-actions">
+        <button class="btn primary" id="cfgSave">保存并开始</button>
+        <button class="btn" id="cfgCancel">取消</button>
+      </div>
+    </div>
   </div>
 
   <div class="overlay" id="overlay" hidden>

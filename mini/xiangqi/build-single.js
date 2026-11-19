@@ -22,6 +22,7 @@ let endgamesJs = read('endgames.js');
 let replayJs = read('replay.js');
 let soundJs = read('sound.js');
 let hintJs = read('hint.js');
+let teachJs = read('teach.js');
 let mainJs = read('main.js');
 
 // 所有模块顶部都有 import 语句，内联后统一改成一个作用域，需要全部去掉。
@@ -42,6 +43,7 @@ function stripLocalImports(src) {
 mainJs = stripLocalImports(mainJs);
 soundJs = stripLocalImports(soundJs);
 hintJs = stripLocalImports(hintJs);
+teachJs = stripLocalImports(teachJs);
 replayJs = stripLocalImports(replayJs);
 endgamesJs = stripLocalImports(endgamesJs);
 aiJs = stripLocalImports(aiJs);
@@ -52,7 +54,8 @@ function stripExports(src) {
     // 纯粹的 re-export 语句整体删掉：export { A, B };
     .replace(/^export\s*\{[^}]*\}\s*;?\s*$/gm, '')
     // 声明式导出去掉 export 关键字
-    .replace(/^export\s+(const|let|var|function|class)\s/gm, '$1 ')
+    // 同时支持 export async function / export async function* 等写法
+    .replace(/^export\s+(async\s+)?(const|let|var|function|class)\s/gm, '$1$2 ')
     .replace(/^export\s+default\s+/gm, '');
 }
 
@@ -62,6 +65,7 @@ endgamesJs = stripExports(endgamesJs);
 replayJs = stripExports(replayJs);
 soundJs = stripExports(soundJs);
 hintJs = stripExports(hintJs);
+teachJs = stripExports(teachJs);
 
 const bundle = [
   '(function(){',
@@ -78,6 +82,8 @@ const bundle = [
   soundJs,
   '/* ===== hint.js ===== */',
   hintJs,
+  '/* ===== teach.js ===== */',
+  teachJs,
   '/* ===== main.js ===== */',
   mainJs,
   '})();',

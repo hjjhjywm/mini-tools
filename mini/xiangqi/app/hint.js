@@ -136,8 +136,8 @@ export function getHint(board, opts = {}) {
   const legal = board.legalMoves(board.side);
   if (legal.length === 0) return null;
 
-  const depth = opts.depth ?? 6;
-  const timeLimit = opts.timeLimit ?? 1500;
+  const depth = opts.depth ?? 10;
+  const timeLimit = opts.timeLimit ?? 2500;
 
   // 1) 先用引擎找最佳着法
   clearTT();

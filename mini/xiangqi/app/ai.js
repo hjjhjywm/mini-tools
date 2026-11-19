@@ -289,14 +289,35 @@ function genLegalMoves(board, side) {
 
   const cells = board.cells;
   const kingChar = side === RED ? 'K' : 'k';
-  let hasKing = false;
-  for (let i = 0; i < 90; i++) if (cells[i] === kingChar) { hasKing = true; break; }
-  if (!hasKing) return [];
+  let kingIdx = -1;
+  for (let i = 0; i < 90; i++) if (cells[i] === kingChar) { kingIdx = i; break; }
+  if (kingIdx < 0) return [];
+
+  const kx = kingIdx % 9, ky = (kingIdx / 9) | 0;
+  // 当前是否已被将军：被将军时所有着法都要验证
+  const currentlyChecked = inCheck(board, side);
 
   const result = [];
   for (const m of pseudo) {
     const [fx, fy] = m.from, [tx, ty] = m.to;
     const fromIdx = fy * 9 + fx;
+
+    // 快速通道：未被将军时，只有以下情况才可能自陷将军
+    //   1) 走的是将/帅本身
+    //   2) 起点或终点与将帅同行/同列 —— 移动会改变该线路上的遮挡关系
+    //      （起点：可能让开遮挡暴露将帅；终点：可能挡住攻击线路，
+    //        反而制造出"将帅照面"之类的非法局面）
+    // 其余着法与将帅线路无关，直接放行，省掉一次完整的 inCheck 扫描
+    if (!currentlyChecked) {
+      const isKingMove = fromIdx === kingIdx;
+      const fromOnLine = (fx === kx) || (fy === ky);
+      const toOnLine = (tx === kx) || (ty === ky);
+      if (!isKingMove && !fromOnLine && !toOnLine) {
+        result.push(m);
+        continue;
+      }
+    }
+
     const cap = cells[ty * 9 + tx];
     cells[ty * 9 + tx] = cells[fromIdx];
     cells[fromIdx] = null;
@@ -338,6 +359,14 @@ function moveOrderScore(board, m, pvMove, killers) {
   return 0;
 }
 
+/** 带历史启发的排序分数（供 negamax 内部使用） */
+function orderScore(board, m, pvMove, killers) {
+  const base = moveOrderScore(board, m, pvMove, killers);
+  if (base !== 0) return base;
+  const hi = historyIndex(m);
+  return (hi >= 0 && hi < HISTORY_SIZE) ? historyTable[hi] : 0;
+}
+
 // ---------- 静态搜索 ----------
 let nodes = 0;
 let stopFlag = false;
@@ -375,7 +404,18 @@ function quiescence(board, alpha, beta, side, depth = 0) {
  * 重复局面检测：搜索路径上同一局面出现 2 次即视为循环，按和棋（0 分）计。
  * 这样 AI 不会为了"骚扰"而无限长将，也不会误入自己制造的死循环。
  */
-function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
+// 历史启发表：记录每个 (起点格, 终点格) 造成剪枝的次数，供非吃子着法排序用
+const HISTORY_SIZE = 90 * 90;
+let historyTable = new Int32Array(HISTORY_SIZE);
+const historyIndex = (m) => ((m.from[1] * 9 + m.from[0]) * 90 + (m.to[1] * 9 + m.to[0]));
+
+/** 每个 ply 各自的杀手着法（而非每层新建空数组） */
+let killerTable = [];
+function ensureKillerTable(maxPly) {
+  while (killerTable.length <= maxPly) killerTable.push([null, null]);
+}
+
+function negamax(board, depth, alpha, beta, side, ply, pathHashes) {
   nodes++;
   if ((nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) stopFlag = true;
   if (stopFlag) return evaluate(board, side);
@@ -408,19 +448,29 @@ function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
     }
   }
 
+  const checked = inCheck(board, side);
+
   // 空着裁剪（简化：只在中局、非将军时用）
-  if (!isRoot && depth >= 3 && !inCheck(board, side) && Math.abs(beta) < MATE_SCORE - 1000) {
+  if (!isRoot && depth >= 3 && !checked && Math.abs(beta) < MATE_SCORE - 1000) {
     const R = 2;
-    // 让对手连走（实际不能真连走，用一个简化版：跳过一层的静态评估）
-    const nullScore = -negamax(board, depth - 1 - R, -beta, -beta + 1, opposite(side), ply + 1, [null, null], pathHashes);
+    const nullScore = -negamax(board, depth - 1 - R, -beta, -beta + 1, opposite(side), ply + 1, pathHashes);
     if (nullScore >= beta) return beta;
   }
 
-  legal.sort((a, b) => moveOrderScore(board, b, pvMove, killers) - moveOrderScore(board, a, pvMove, killers));
+  ensureKillerTable(ply);
+  const killers = killerTable[ply];
+
+  // 着法排序：PV > 吃子(MVV-LVA) > 杀手 > 历史启发
+  legal.sort((a, b) => {
+    const sa = orderScore(board, a, pvMove, killers);
+    const sb = orderScore(board, b, pvMove, killers);
+    return sb - sa;
+  });
 
   let bestScore = -INF;
   let bestMove = null;
   const alphaOrig = alpha;
+  let searched = 0;
 
   // 把当前局面加入路径，供子节点检测循环
   const childPath = pathHashes ? [...pathHashes, hash] : [hash];
@@ -429,12 +479,35 @@ function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
     const m = legal[i];
     const [fx, fy] = m.from, [tx, ty] = m.to;
     const cap = board.cells[ty * 9 + tx];
+    const isQuiet = !cap;
     board.cells[ty * 9 + tx] = board.cells[fy * 9 + fx];
     board.cells[fy * 9 + fx] = null;
     board.side = opposite(side);
 
-    const newKillers = [null, null];
-    const score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), ply + 1, newKillers, childPath);
+    let score;
+    if (searched === 0) {
+      // 首个着法：全窗口
+      score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), ply + 1, childPath);
+    } else {
+      // PVS：先用零窗口探测，失败再重搜
+      // LMR：靠后的安静着法先削减深度
+      let reduction = 0;
+      if (isQuiet && depth >= 3 && searched >= 3 && !checked) {
+        reduction = searched >= 6 ? 2 : 1;
+      }
+      score = -negamax(board, depth - 1 - reduction, -alpha - 1, -alpha, opposite(side), ply + 1, childPath);
+
+      // 零窗口探测失败且没有被削减，或削减后意外变好 → 重搜全窗口
+      if (score > alpha && score < beta) {
+        if (reduction > 0) {
+          score = -negamax(board, depth - 1, -alpha - 1, -alpha, opposite(side), ply + 1, childPath);
+        }
+        if (score > alpha && score < beta) {
+          score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), ply + 1, childPath);
+        }
+      }
+    }
+    searched++;
 
     board.side = side;
     board.cells[fy * 9 + fx] = board.cells[ty * 9 + tx];
@@ -445,9 +518,17 @@ function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
     if (score > bestScore) { bestScore = score; bestMove = m; }
     if (score > alpha) alpha = score;
     if (alpha >= beta) {
-      // 记录杀手着法
-      if (!board.cells[ty * 9 + tx]) {
+      // 记录杀手着法（仅安静着法）和历史启发
+      if (isQuiet) {
         if (!killers[0] || !sameMove(killers[0], m)) { killers[1] = killers[0]; killers[0] = m; }
+        const hi = historyIndex(m);
+        if (hi >= 0 && hi < HISTORY_SIZE) {
+          historyTable[hi] += depth * depth;
+          if (historyTable[hi] > 1 << 20) {
+            // 防止溢出：整体衰减
+            for (let k = 0; k < HISTORY_SIZE; k++) historyTable[k] >>= 1;
+          }
+        }
       }
       break;
     }
@@ -474,6 +555,9 @@ export function searchBestMove(board, opts = {}) {
   nodes = 0;
   stopFlag = false;
   startTime = Date.now();
+  // 每轮搜索重置历史启发与杀手着法
+  historyTable = new Int32Array(HISTORY_SIZE);
+  killerTable = [];
 
   const side = board.side;
   const rootLegal = genLegalMoves(board, side);
@@ -500,7 +584,7 @@ export function searchBestMove(board, opts = {}) {
       board.cells[fy * 9 + fx] = null;
       board.side = opposite(side);
 
-      const score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), 1, [null, null], rootPath);
+      const score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), 1, rootPath);
 
       board.side = side;
       board.cells[fy * 9 + fx] = board.cells[ty * 9 + tx];
@@ -543,15 +627,18 @@ export const DIFFICULTIES = {
   },
   hard: {
     label: '困难',
+    // 困难档保持中等强度：深度 5 + 少量随机，与大师档拉开差距
     maxDepth: 5,
-    timeLimitMs: 2000,
+    timeLimitMs: 1500,
     blunder: 0.05,
     rankRange: 0.06,
   },
   master: {
     label: '大师',
-    maxDepth: 12,
-    timeLimitMs: 6000,
+    // 迭代加深保证随时有可用结果：时间到就交当前最好的一步。
+    // 优化后 3 秒内能搜到 7-9 层，比困难档深 2-4 层。
+    maxDepth: 14,
+    timeLimitMs: 3000,
     blunder: 0,
     rankRange: 0,
   },

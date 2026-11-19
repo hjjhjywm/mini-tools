@@ -3,6 +3,13 @@ import { chooseMove, evaluate, DIFFICULTIES } from './ai.js';
 import { ENDGAMES } from './endgames.js';
 import { loadAll, addGame, removeGame, fromImport, Replayer, toJson, normalizeFen } from './replay.js';
 import { getHint } from './hint.js';
+import {
+  loadTeachConfig,
+  saveTeachConfig,
+  defaultConfig,
+  explainPosition,
+  PRESET_QUESTIONS,
+} from './teach.js';
 // 音效模块的函数名自带前缀，打包内联后与其它模块不冲突
 import {
   playSound,
@@ -59,6 +66,8 @@ const state = {
   saveTipTimer: null,   // 结束提示条的自动收起定时器
   hint: null,           // 当前求助建议
   hintThinking: false,  // 求助计算中
+  teachAbort: null,     // 教学请求的取消控制器
+  teachBusy: false,     // 教学请求进行中
 };
 
 // ---------- 绘图 ----------
@@ -863,7 +872,7 @@ function requestHint() {
   // 让 UI 先更新，再跑搜索（否则界面会卡住）
   setTimeout(() => {
     try {
-      const h = getHint(board, { depth: 6, timeLimit: 1500 });
+      const h = getHint(board, { depth: 10, timeLimit: 2500 });
       state.hintThinking = false;
       btn.disabled = false;
       btn.textContent = oldText;
@@ -914,6 +923,126 @@ function showHintPanel({ notation, reasons, scoreText, meta }) {
   metaEl.hidden = !meta;
 }
 
+// ---------- 教学模式 ----------
+
+/** 渲染预设问题按钮 */
+function renderTeachPresets() {
+  const box = document.getElementById('teachPresets');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const p of PRESET_QUESTIONS) {
+    const btn = document.createElement('button');
+    btn.textContent = p.label;
+    btn.dataset.q = p.q;
+    btn.addEventListener('click', () => askTeacher(p.q));
+    box.appendChild(btn);
+  }
+}
+
+/** 设置面板：打开并回填当前配置 */
+function openTeachSetup() {
+  const cfg = loadTeachConfig();
+  document.getElementById('cfgBaseUrl').value = cfg.baseUrl;
+  document.getElementById('cfgApiKey').value = cfg.apiKey;
+  document.getElementById('cfgModel').value = cfg.model;
+  document.getElementById('cfgStyle').value = cfg.style || 'intermediate';
+  document.getElementById('teachSetupOverlay').hidden = false;
+}
+
+/** 保存配置 */
+function saveTeachSetup() {
+  const cfg = loadTeachConfig();
+  cfg.baseUrl = document.getElementById('cfgBaseUrl').value.trim() || defaultConfig().baseUrl;
+  cfg.apiKey = document.getElementById('cfgApiKey').value.trim();
+  cfg.model = document.getElementById('cfgModel').value.trim() || defaultConfig().model;
+  cfg.style = document.getElementById('cfgStyle').value;
+  cfg.enabled = !!cfg.apiKey;
+  saveTeachConfig(cfg);
+  document.getElementById('teachSetupOverlay').hidden = true;
+  if (cfg.apiKey) {
+    setTeachStatus('配置已保存，可以开始提问了');
+    document.getElementById('teachPanel').hidden = false;
+  }
+}
+
+function setTeachStatus(text, isError = false) {
+  const el = document.getElementById('teachStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'teach-status' + (isError ? ' error' : '');
+}
+
+/** 向教练提问 */
+async function askTeacher(question) {
+  if (state.teachBusy) return;
+
+  const cfg = loadTeachConfig();
+  if (!cfg.apiKey) {
+    openTeachSetup();
+    return;
+  }
+
+  if (state.gameOver) {
+    setTeachStatus('对局已结束，点「重新开局」后再提问');
+    return;
+  }
+  if (state.mode === 'replay') {
+    setTeachStatus('回顾模式下不能提问，切回对局模式');
+    return;
+  }
+
+  state.teachBusy = true;
+  const answerEl = document.getElementById('teachAnswer');
+  const btns = document.querySelectorAll('#teachPresets button');
+  btns.forEach((b) => { b.disabled = true; });
+
+  answerEl.textContent = '';
+  setTeachStatus('教练思考中…');
+
+  // 先本地算好局面摘要，模型只负责讲解（降低延迟与 token）
+  let hint = null;
+  try {
+    hint = getHint(state.board, { depth: 8, timeLimit: 1200 });
+  } catch { /* 算不出来也不影响讲解 */ }
+
+  const ctrl = new AbortController();
+  state.teachAbort = ctrl;
+
+  const t0 = Date.now();
+  let firstChunkAt = 0;
+
+  try {
+    const full = await explainPosition(state.board, hint, {
+      question,
+      style: cfg.style || 'intermediate',
+      signal: ctrl.signal,
+      onChunk: (delta) => {
+        if (!firstChunkAt) {
+          firstChunkAt = Date.now();
+          setTeachStatus(`已开始回答（首字 ${firstChunkAt - t0}ms）`);
+        }
+        answerEl.textContent += delta;
+        answerEl.scrollTop = answerEl.scrollHeight;
+      },
+    });
+
+    const total = Date.now() - t0;
+    setTeachStatus(`回答完成 · 首字 ${firstChunkAt ? firstChunkAt - t0 : '?'}ms · 总计 ${total}ms`);
+    playSound('ui');
+    if (!full) setTeachStatus('模型没有返回内容，检查配置是否正确', true);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      setTeachStatus('已取消');
+    } else {
+      setTeachStatus('出错了：' + (e.message || e), true);
+    }
+  } finally {
+    state.teachBusy = false;
+    state.teachAbort = null;
+    btns.forEach((b) => { b.disabled = false; });
+  }
+}
+
 // ---------- 事件绑定 ----------
 canvas.addEventListener('click', onClick);
 
@@ -921,6 +1050,29 @@ document.getElementById('btnNew').addEventListener('click', newGame);
 document.getElementById('btnUndo').addEventListener('click', undo);
 document.getElementById('btnGetHint').addEventListener('click', requestHint);
 document.getElementById('hintClose').addEventListener('click', clearHint);
+
+// 教学模式
+document.getElementById('btnTeach').addEventListener('click', () => {
+  const cfg = loadTeachConfig();
+  if (!cfg.apiKey) {
+    openTeachSetup();
+    return;
+  }
+  const panel = document.getElementById('teachPanel');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden) {
+    renderTeachPresets();
+    setTeachStatus('');
+  }
+});
+document.getElementById('teachClose').addEventListener('click', () => {
+  if (state.teachAbort) state.teachAbort.abort();
+  document.getElementById('teachPanel').hidden = true;
+});
+document.getElementById('cfgSave').addEventListener('click', saveTeachSetup);
+document.getElementById('cfgCancel').addEventListener('click', () => {
+  document.getElementById('teachSetupOverlay').hidden = true;
+});
 document.getElementById('ovNew').addEventListener('click', () => {
   document.getElementById('saveTip').hidden = true;
   newGame();

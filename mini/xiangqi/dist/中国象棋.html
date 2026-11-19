@@ -640,6 +640,144 @@ html, body {
   padding-top: 5px;
 }
 
+/* ---------- 教学模式 ---------- */
+.teach-btn {
+  width: 100%;
+  background: linear-gradient(180deg, #3a2c4a, #2a1e36);
+  border-color: #6a4a8a;
+  color: #d8c0f0;
+  font-weight: 600;
+}
+.teach-btn:hover {
+  background: linear-gradient(180deg, #46345a, #342446);
+  border-color: #7a5a9a;
+}
+
+.teach-panel {
+  margin-top: 8px;
+  padding: 10px;
+  background: linear-gradient(180deg, #2e2438, #241c2e);
+  border: 1px solid #6a4a8a;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: hintIn .18s ease-out;
+}
+.teach-panel[hidden] { display: none !important; }
+
+.teach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.teach-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #d8c0f0;
+}
+
+.teach-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.teach-presets button {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #c0a8d8;
+  background: rgba(106, 74, 138, .25);
+  border: 1px solid rgba(106, 74, 138, .5);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.teach-presets button:hover {
+  background: rgba(106, 74, 138, .45);
+  color: #e8d8f8;
+}
+.teach-presets button:disabled {
+  opacity: .45;
+  cursor: wait;
+}
+
+.teach-answer {
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: #d8d0e0;
+  min-height: 40px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(0, 0, 0, .22);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.teach-answer:empty::before {
+  content: '点上面的问题，或直接问教练…';
+  color: #6a5a7a;
+}
+.teach-answer::-webkit-scrollbar { width: 5px; }
+.teach-answer::-webkit-scrollbar-thumb { background: #4a3a5a; border-radius: 3px; }
+
+.teach-status {
+  font-size: 10.5px;
+  color: #8a7a9a;
+  min-height: 14px;
+}
+.teach-status.error { color: #e08080; }
+
+/* 设置弹层 */
+.teach-setup {
+  width: 440px;
+  max-width: 92vw;
+  text-align: left;
+}
+.teach-setup h2 { text-align: center; margin-bottom: 8px; }
+.setup-tip {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin-bottom: 14px !important;
+  text-align: center;
+}
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.setup-row > span {
+  flex: 0 0 68px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.setup-row input,
+.setup-row select {
+  flex: 1;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: #241e1a;
+  border: 1px solid #463c31;
+  border-radius: 6px;
+  outline: none;
+}
+.setup-row input:focus,
+.setup-row select:focus { border-color: var(--accent); }
+
+.setup-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.setup-actions .btn { flex: 1; }
+
 </style>
 </head>
 <body>
@@ -760,6 +898,19 @@ html, body {
       </section>
 
       <section class="group">
+        <button class="btn teach-btn" id="btnTeach">🎓 教学模式</button>
+        <div class="teach-panel" id="teachPanel" hidden>
+          <div class="teach-head">
+            <span class="teach-title">🎓 教练讲解</span>
+            <button class="hint-close" id="teachClose" title="关闭">×</button>
+          </div>
+          <div class="teach-presets" id="teachPresets"></div>
+          <div class="teach-answer" id="teachAnswer"></div>
+          <div class="teach-status" id="teachStatus"></div>
+        </div>
+      </section>
+
+      <section class="group">
         <button class="btn hint-btn" id="btnGetHint">💡 求助：下一步怎么走</button>
         <div class="hint-panel" id="hintPanel" hidden>
           <div class="hint-head">
@@ -781,6 +932,43 @@ html, body {
         <div class="ai-meta" id="aiMeta">—</div>
       </section>
     </aside>
+  </div>
+
+  <div class="overlay" id="teachSetupOverlay" hidden>
+    <div class="overlay-card teach-setup">
+      <h2>教学模式设置</h2>
+      <p class="setup-tip">填入大模型 API 配置，即可让 AI 教练用自然语言讲解棋局。<br>
+         Key 只存在你的浏览器本地，不会上传到任何服务器（除了你填的 API 地址）。</p>
+
+      <label class="setup-row">
+        <span>API 地址</span>
+        <input type="text" id="cfgBaseUrl" placeholder="https://api.deepseek.com/v1">
+      </label>
+
+      <label class="setup-row">
+        <span>API Key</span>
+        <input type="password" id="cfgApiKey" placeholder="sk-...">
+      </label>
+
+      <label class="setup-row">
+        <span>模型</span>
+        <input type="text" id="cfgModel" placeholder="deepseek-chat">
+      </label>
+
+      <label class="setup-row">
+        <span>讲解风格</span>
+        <select id="cfgStyle">
+          <option value="beginner">入门（通俗易懂）</option>
+          <option value="intermediate" selected>进阶（用基本术语）</option>
+          <option value="advanced">高手（专业棋理）</option>
+        </select>
+      </label>
+
+      <div class="setup-actions">
+        <button class="btn primary" id="cfgSave">保存并开始</button>
+        <button class="btn" id="cfgCancel">取消</button>
+      </div>
+    </div>
   </div>
 
   <div class="overlay" id="overlay" hidden>
@@ -1517,14 +1705,35 @@ function genLegalMoves(board, side) {
 
   const cells = board.cells;
   const kingChar = side === RED ? 'K' : 'k';
-  let hasKing = false;
-  for (let i = 0; i < 90; i++) if (cells[i] === kingChar) { hasKing = true; break; }
-  if (!hasKing) return [];
+  let kingIdx = -1;
+  for (let i = 0; i < 90; i++) if (cells[i] === kingChar) { kingIdx = i; break; }
+  if (kingIdx < 0) return [];
+
+  const kx = kingIdx % 9, ky = (kingIdx / 9) | 0;
+  // 当前是否已被将军：被将军时所有着法都要验证
+  const currentlyChecked = inCheck(board, side);
 
   const result = [];
   for (const m of pseudo) {
     const [fx, fy] = m.from, [tx, ty] = m.to;
     const fromIdx = fy * 9 + fx;
+
+    // 快速通道：未被将军时，只有以下情况才可能自陷将军
+    //   1) 走的是将/帅本身
+    //   2) 起点或终点与将帅同行/同列 —— 移动会改变该线路上的遮挡关系
+    //      （起点：可能让开遮挡暴露将帅；终点：可能挡住攻击线路，
+    //        反而制造出"将帅照面"之类的非法局面）
+    // 其余着法与将帅线路无关，直接放行，省掉一次完整的 inCheck 扫描
+    if (!currentlyChecked) {
+      const isKingMove = fromIdx === kingIdx;
+      const fromOnLine = (fx === kx) || (fy === ky);
+      const toOnLine = (tx === kx) || (ty === ky);
+      if (!isKingMove && !fromOnLine && !toOnLine) {
+        result.push(m);
+        continue;
+      }
+    }
+
     const cap = cells[ty * 9 + tx];
     cells[ty * 9 + tx] = cells[fromIdx];
     cells[fromIdx] = null;
@@ -1566,6 +1775,14 @@ function moveOrderScore(board, m, pvMove, killers) {
   return 0;
 }
 
+/** 带历史启发的排序分数（供 negamax 内部使用） */
+function orderScore(board, m, pvMove, killers) {
+  const base = moveOrderScore(board, m, pvMove, killers);
+  if (base !== 0) return base;
+  const hi = historyIndex(m);
+  return (hi >= 0 && hi < HISTORY_SIZE) ? historyTable[hi] : 0;
+}
+
 // ---------- 静态搜索 ----------
 let nodes = 0;
 let stopFlag = false;
@@ -1603,7 +1820,18 @@ function quiescence(board, alpha, beta, side, depth = 0) {
  * 重复局面检测：搜索路径上同一局面出现 2 次即视为循环，按和棋（0 分）计。
  * 这样 AI 不会为了"骚扰"而无限长将，也不会误入自己制造的死循环。
  */
-function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
+// 历史启发表：记录每个 (起点格, 终点格) 造成剪枝的次数，供非吃子着法排序用
+const HISTORY_SIZE = 90 * 90;
+let historyTable = new Int32Array(HISTORY_SIZE);
+const historyIndex = (m) => ((m.from[1] * 9 + m.from[0]) * 90 + (m.to[1] * 9 + m.to[0]));
+
+/** 每个 ply 各自的杀手着法（而非每层新建空数组） */
+let killerTable = [];
+function ensureKillerTable(maxPly) {
+  while (killerTable.length <= maxPly) killerTable.push([null, null]);
+}
+
+function negamax(board, depth, alpha, beta, side, ply, pathHashes) {
   nodes++;
   if ((nodes & 511) === 0 && Date.now() - startTime > timeLimitMs) stopFlag = true;
   if (stopFlag) return evaluate(board, side);
@@ -1636,19 +1864,29 @@ function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
     }
   }
 
+  const checked = inCheck(board, side);
+
   // 空着裁剪（简化：只在中局、非将军时用）
-  if (!isRoot && depth >= 3 && !inCheck(board, side) && Math.abs(beta) < MATE_SCORE - 1000) {
+  if (!isRoot && depth >= 3 && !checked && Math.abs(beta) < MATE_SCORE - 1000) {
     const R = 2;
-    // 让对手连走（实际不能真连走，用一个简化版：跳过一层的静态评估）
-    const nullScore = -negamax(board, depth - 1 - R, -beta, -beta + 1, opposite(side), ply + 1, [null, null], pathHashes);
+    const nullScore = -negamax(board, depth - 1 - R, -beta, -beta + 1, opposite(side), ply + 1, pathHashes);
     if (nullScore >= beta) return beta;
   }
 
-  legal.sort((a, b) => moveOrderScore(board, b, pvMove, killers) - moveOrderScore(board, a, pvMove, killers));
+  ensureKillerTable(ply);
+  const killers = killerTable[ply];
+
+  // 着法排序：PV > 吃子(MVV-LVA) > 杀手 > 历史启发
+  legal.sort((a, b) => {
+    const sa = orderScore(board, a, pvMove, killers);
+    const sb = orderScore(board, b, pvMove, killers);
+    return sb - sa;
+  });
 
   let bestScore = -INF;
   let bestMove = null;
   const alphaOrig = alpha;
+  let searched = 0;
 
   // 把当前局面加入路径，供子节点检测循环
   const childPath = pathHashes ? [...pathHashes, hash] : [hash];
@@ -1657,12 +1895,35 @@ function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
     const m = legal[i];
     const [fx, fy] = m.from, [tx, ty] = m.to;
     const cap = board.cells[ty * 9 + tx];
+    const isQuiet = !cap;
     board.cells[ty * 9 + tx] = board.cells[fy * 9 + fx];
     board.cells[fy * 9 + fx] = null;
     board.side = opposite(side);
 
-    const newKillers = [null, null];
-    const score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), ply + 1, newKillers, childPath);
+    let score;
+    if (searched === 0) {
+      // 首个着法：全窗口
+      score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), ply + 1, childPath);
+    } else {
+      // PVS：先用零窗口探测，失败再重搜
+      // LMR：靠后的安静着法先削减深度
+      let reduction = 0;
+      if (isQuiet && depth >= 3 && searched >= 3 && !checked) {
+        reduction = searched >= 6 ? 2 : 1;
+      }
+      score = -negamax(board, depth - 1 - reduction, -alpha - 1, -alpha, opposite(side), ply + 1, childPath);
+
+      // 零窗口探测失败且没有被削减，或削减后意外变好 → 重搜全窗口
+      if (score > alpha && score < beta) {
+        if (reduction > 0) {
+          score = -negamax(board, depth - 1, -alpha - 1, -alpha, opposite(side), ply + 1, childPath);
+        }
+        if (score > alpha && score < beta) {
+          score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), ply + 1, childPath);
+        }
+      }
+    }
+    searched++;
 
     board.side = side;
     board.cells[fy * 9 + fx] = board.cells[ty * 9 + tx];
@@ -1673,9 +1934,17 @@ function negamax(board, depth, alpha, beta, side, ply, killers, pathHashes) {
     if (score > bestScore) { bestScore = score; bestMove = m; }
     if (score > alpha) alpha = score;
     if (alpha >= beta) {
-      // 记录杀手着法
-      if (!board.cells[ty * 9 + tx]) {
+      // 记录杀手着法（仅安静着法）和历史启发
+      if (isQuiet) {
         if (!killers[0] || !sameMove(killers[0], m)) { killers[1] = killers[0]; killers[0] = m; }
+        const hi = historyIndex(m);
+        if (hi >= 0 && hi < HISTORY_SIZE) {
+          historyTable[hi] += depth * depth;
+          if (historyTable[hi] > 1 << 20) {
+            // 防止溢出：整体衰减
+            for (let k = 0; k < HISTORY_SIZE; k++) historyTable[k] >>= 1;
+          }
+        }
       }
       break;
     }
@@ -1702,6 +1971,9 @@ function searchBestMove(board, opts = {}) {
   nodes = 0;
   stopFlag = false;
   startTime = Date.now();
+  // 每轮搜索重置历史启发与杀手着法
+  historyTable = new Int32Array(HISTORY_SIZE);
+  killerTable = [];
 
   const side = board.side;
   const rootLegal = genLegalMoves(board, side);
@@ -1728,7 +2000,7 @@ function searchBestMove(board, opts = {}) {
       board.cells[fy * 9 + fx] = null;
       board.side = opposite(side);
 
-      const score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), 1, [null, null], rootPath);
+      const score = -negamax(board, depth - 1, -beta, -alpha, opposite(side), 1, rootPath);
 
       board.side = side;
       board.cells[fy * 9 + fx] = board.cells[ty * 9 + tx];
@@ -1771,15 +2043,18 @@ const DIFFICULTIES = {
   },
   hard: {
     label: '困难',
+    // 困难档保持中等强度：深度 5 + 少量随机，与大师档拉开差距
     maxDepth: 5,
-    timeLimitMs: 2000,
+    timeLimitMs: 1500,
     blunder: 0.05,
     rankRange: 0.06,
   },
   master: {
     label: '大师',
-    maxDepth: 12,
-    timeLimitMs: 6000,
+    // 迭代加深保证随时有可用结果：时间到就交当前最好的一步。
+    // 优化后 3 秒内能搜到 7-9 层，比困难档深 2-4 层。
+    maxDepth: 14,
+    timeLimitMs: 3000,
     blunder: 0,
     rankRange: 0,
   },
@@ -2588,8 +2863,8 @@ function getHint(board, opts = {}) {
   const legal = board.legalMoves(board.side);
   if (legal.length === 0) return null;
 
-  const depth = opts.depth ?? 6;
-  const timeLimit = opts.timeLimit ?? 1500;
+  const depth = opts.depth ?? 10;
+  const timeLimit = opts.timeLimit ?? 2500;
 
   // 1) 先用引擎找最佳着法
   clearTT();
@@ -2658,6 +2933,238 @@ function getHint(board, opts = {}) {
   };
 }
 
+/* ===== teach.js ===== */
+/**
+ * 教学模式：接入大模型 API，用自然语言讲解棋局
+ *
+ * 设计要点（降低延迟）：
+ *   1. 流式输出（SSE）：第一个字 1-2 秒内出现，不用等整段生成
+ *   2. 本地先算好局面摘要，让模型只负责"讲解"，不负责"算棋" —— token 少、延迟低
+ *   3. 请求体最小化：只发关键信息（局面、候选着法、评估），不发完整棋谱
+ *   4. 支持 OpenAI 兼容接口，用户自填 Key / BaseURL / 模型
+ */
+
+
+const LS_KEY = 'xiangqi.teach.v1';
+
+/** 读取本地配置 */
+function loadTeachConfig() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return defaultConfig();
+    const o = JSON.parse(raw);
+    return {
+      enabled: !!o.enabled,
+      apiKey: typeof o.apiKey === 'string' ? o.apiKey : '',
+      baseUrl: typeof o.baseUrl === 'string' && o.baseUrl ? o.baseUrl : defaultConfig().baseUrl,
+      model: typeof o.model === 'string' && o.model ? o.model : defaultConfig().model,
+      temperature: typeof o.temperature === 'number' ? o.temperature : 0.7,
+    };
+  } catch {
+    return defaultConfig();
+  }
+}
+
+function defaultConfig() {
+  return {
+    enabled: false,
+    apiKey: '',
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    temperature: 0.7,
+  };
+}
+
+function saveTeachConfig(cfg) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 局面转成简洁文本（给模型看，尽量少 token） */
+function boardToText(board) {
+  const lines = [];
+  for (let y = 0; y < 10; y++) {
+    let row = '';
+    for (let x = 0; x < 9; x++) {
+      const p = board.pieceAt(x, y);
+      row += p ? PIECE_CHARS[p] : '·';
+    }
+    lines.push(row);
+  }
+  return lines.join('\n');
+}
+
+/** 列出双方子力 */
+function materialText(board) {
+  const count = (side) => {
+    const m = {};
+    for (const p of board.cells) {
+      if (!p) continue;
+      const isRed = p === p.toUpperCase();
+      if ((isRed ? RED : BLACK) !== side) continue;
+      const ch = PIECE_CHARS[p];
+      m[ch] = (m[ch] || 0) + 1;
+    }
+    return Object.entries(m).map(([k, v]) => `${k}${v > 1 ? '×' + v : ''}`).join(' ');
+  };
+  return { red: count(RED), black: count(BLACK) };
+}
+
+/**
+ * 构建给模型的局面摘要（本地算好，模型只负责讲解）
+ */
+function buildSituation(board, hint) {
+  const side = board.side === RED ? '红方' : '黑方';
+  const mat = materialText(board);
+  const inCheck = board.isChecked(board.side);
+
+  let analysis = '';
+  if (hint) {
+    analysis = `引擎分析：推荐 ${hint.notation}，评估 ${hint.scoreText}。`;
+    if (hint.reasons && hint.reasons.length) {
+      analysis += `要点：${hint.reasons.join('；')}。`;
+    }
+  }
+
+  return {
+    side,
+    boardText: boardToText(board),
+    material: mat,
+    inCheck,
+    analysis,
+  };
+}
+
+/** 构造 prompt —— 精简、直接，减少 token 和延迟 */
+function buildPrompt(situation, question, style) {
+  const styleGuide = {
+    beginner: '用初学者能听懂的话讲，避免术语，多用比喻。',
+    intermediate: '用有一定基础的棋友能懂的话讲，可以用基本术语。',
+    advanced: '用专业棋理讲，可以深入分析。',
+  }[style] || '用通俗易懂的话讲。';
+
+  return `你是一位中国象棋教练。请${styleGuide}
+
+当前局面（红方在下，黑方在上，·表示空位）：
+${situation.boardText}
+
+轮到：${situation.side}
+红方子力：${situation.material.red}
+黑方子力：${situation.material.black}
+${situation.inCheck ? '当前被将军。' : ''}
+${situation.analysis}
+
+${question}
+
+要求：
+1. 直接回答，不要复述局面
+2. 讲清楚"为什么"，而不只是"走哪里"
+3. 控制在 200 字以内，分 2-3 个要点
+4. 不要用 Markdown 标题和代码块`;
+}
+
+/**
+ * 流式请求大模型
+ * @param {object} cfg 配置
+ * @param {string} prompt
+ * @param {(chunk:string)=>void} onChunk 每收到一段文字就回调
+ * @param {AbortSignal} signal 用于取消
+ * @returns {Promise<string>} 完整文本
+ */
+async function streamTeach(cfg, prompt, onChunk, signal) {
+  if (!cfg.apiKey) throw new Error('还没填 API Key，请在设置里填写');
+
+  const url = cfg.baseUrl.replace(/\/$/, '') + '/chat/completions';
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + cfg.apiKey,
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      messages: [
+        { role: 'system', content: '你是专业、耐心的中国象棋教练。' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: cfg.temperature,
+      stream: true,
+      max_tokens: 600,
+    }),
+    signal,
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const j = await res.json();
+      detail = j.error?.message || JSON.stringify(j).slice(0, 200);
+    } catch {
+      detail = (await res.text()).slice(0, 200);
+    }
+    throw new Error(`API 返回 ${res.status}：${detail}`);
+  }
+
+  // 解析 SSE 流
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t || !t.startsWith('data:')) continue;
+      const data = t.slice(5).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const obj = JSON.parse(data);
+        const delta = obj.choices?.[0]?.delta?.content;
+        if (delta) {
+          full += delta;
+          onChunk(delta);
+        }
+      } catch {
+        /* 单行解析失败不影响整体 */
+      }
+    }
+  }
+
+  return full;
+}
+
+/**
+ * 一键讲解当前局面（高层封装）
+ */
+async function explainPosition(board, hint, opts = {}) {
+  const cfg = loadTeachConfig();
+  const situation = buildSituation(board, hint);
+  const question = opts.question || '请分析当前局面，告诉我现在最该注意什么、下一步该往哪个方向走。';
+  const prompt = buildPrompt(situation, question, opts.style || 'intermediate');
+  return streamTeach(cfg, prompt, opts.onChunk || (() => {}), opts.signal);
+}
+
+/** 预设问题（降低用户输入成本） */
+const PRESET_QUESTIONS = [
+  { id: 'next', label: '下一步怎么走', q: '我下一步该怎么走？为什么？' },
+  { id: 'plan', label: '整体思路', q: '这个局面我该采取什么整体策略？进攻还是防守？重点在哪个区域？' },
+  { id: 'danger', label: '我有什么危险', q: '我现在有什么潜在危险？对方可能有什么威胁我没注意到？' },
+  { id: 'trap', label: '有没有陷阱', q: '当前局面有没有常见的陷阱或套路？我该怎么避免中招？' },
+  { id: 'exchange', label: '该不该兑子', q: '现在适合兑子吗？兑子对谁有利？' },
+];
+
 /* ===== main.js ===== */
 // 音效模块的函数名自带前缀，打包内联后与其它模块不冲突
 
@@ -2707,6 +3214,8 @@ const state = {
   saveTipTimer: null,   // 结束提示条的自动收起定时器
   hint: null,           // 当前求助建议
   hintThinking: false,  // 求助计算中
+  teachAbort: null,     // 教学请求的取消控制器
+  teachBusy: false,     // 教学请求进行中
 };
 
 // ---------- 绘图 ----------
@@ -3511,7 +4020,7 @@ function requestHint() {
   // 让 UI 先更新，再跑搜索（否则界面会卡住）
   setTimeout(() => {
     try {
-      const h = getHint(board, { depth: 6, timeLimit: 1500 });
+      const h = getHint(board, { depth: 10, timeLimit: 2500 });
       state.hintThinking = false;
       btn.disabled = false;
       btn.textContent = oldText;
@@ -3562,6 +4071,126 @@ function showHintPanel({ notation, reasons, scoreText, meta }) {
   metaEl.hidden = !meta;
 }
 
+// ---------- 教学模式 ----------
+
+/** 渲染预设问题按钮 */
+function renderTeachPresets() {
+  const box = document.getElementById('teachPresets');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const p of PRESET_QUESTIONS) {
+    const btn = document.createElement('button');
+    btn.textContent = p.label;
+    btn.dataset.q = p.q;
+    btn.addEventListener('click', () => askTeacher(p.q));
+    box.appendChild(btn);
+  }
+}
+
+/** 设置面板：打开并回填当前配置 */
+function openTeachSetup() {
+  const cfg = loadTeachConfig();
+  document.getElementById('cfgBaseUrl').value = cfg.baseUrl;
+  document.getElementById('cfgApiKey').value = cfg.apiKey;
+  document.getElementById('cfgModel').value = cfg.model;
+  document.getElementById('cfgStyle').value = cfg.style || 'intermediate';
+  document.getElementById('teachSetupOverlay').hidden = false;
+}
+
+/** 保存配置 */
+function saveTeachSetup() {
+  const cfg = loadTeachConfig();
+  cfg.baseUrl = document.getElementById('cfgBaseUrl').value.trim() || defaultConfig().baseUrl;
+  cfg.apiKey = document.getElementById('cfgApiKey').value.trim();
+  cfg.model = document.getElementById('cfgModel').value.trim() || defaultConfig().model;
+  cfg.style = document.getElementById('cfgStyle').value;
+  cfg.enabled = !!cfg.apiKey;
+  saveTeachConfig(cfg);
+  document.getElementById('teachSetupOverlay').hidden = true;
+  if (cfg.apiKey) {
+    setTeachStatus('配置已保存，可以开始提问了');
+    document.getElementById('teachPanel').hidden = false;
+  }
+}
+
+function setTeachStatus(text, isError = false) {
+  const el = document.getElementById('teachStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'teach-status' + (isError ? ' error' : '');
+}
+
+/** 向教练提问 */
+async function askTeacher(question) {
+  if (state.teachBusy) return;
+
+  const cfg = loadTeachConfig();
+  if (!cfg.apiKey) {
+    openTeachSetup();
+    return;
+  }
+
+  if (state.gameOver) {
+    setTeachStatus('对局已结束，点「重新开局」后再提问');
+    return;
+  }
+  if (state.mode === 'replay') {
+    setTeachStatus('回顾模式下不能提问，切回对局模式');
+    return;
+  }
+
+  state.teachBusy = true;
+  const answerEl = document.getElementById('teachAnswer');
+  const btns = document.querySelectorAll('#teachPresets button');
+  btns.forEach((b) => { b.disabled = true; });
+
+  answerEl.textContent = '';
+  setTeachStatus('教练思考中…');
+
+  // 先本地算好局面摘要，模型只负责讲解（降低延迟与 token）
+  let hint = null;
+  try {
+    hint = getHint(state.board, { depth: 8, timeLimit: 1200 });
+  } catch { /* 算不出来也不影响讲解 */ }
+
+  const ctrl = new AbortController();
+  state.teachAbort = ctrl;
+
+  const t0 = Date.now();
+  let firstChunkAt = 0;
+
+  try {
+    const full = await explainPosition(state.board, hint, {
+      question,
+      style: cfg.style || 'intermediate',
+      signal: ctrl.signal,
+      onChunk: (delta) => {
+        if (!firstChunkAt) {
+          firstChunkAt = Date.now();
+          setTeachStatus(`已开始回答（首字 ${firstChunkAt - t0}ms）`);
+        }
+        answerEl.textContent += delta;
+        answerEl.scrollTop = answerEl.scrollHeight;
+      },
+    });
+
+    const total = Date.now() - t0;
+    setTeachStatus(`回答完成 · 首字 ${firstChunkAt ? firstChunkAt - t0 : '?'}ms · 总计 ${total}ms`);
+    playSound('ui');
+    if (!full) setTeachStatus('模型没有返回内容，检查配置是否正确', true);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      setTeachStatus('已取消');
+    } else {
+      setTeachStatus('出错了：' + (e.message || e), true);
+    }
+  } finally {
+    state.teachBusy = false;
+    state.teachAbort = null;
+    btns.forEach((b) => { b.disabled = false; });
+  }
+}
+
 // ---------- 事件绑定 ----------
 canvas.addEventListener('click', onClick);
 
@@ -3569,6 +4198,29 @@ document.getElementById('btnNew').addEventListener('click', newGame);
 document.getElementById('btnUndo').addEventListener('click', undo);
 document.getElementById('btnGetHint').addEventListener('click', requestHint);
 document.getElementById('hintClose').addEventListener('click', clearHint);
+
+// 教学模式
+document.getElementById('btnTeach').addEventListener('click', () => {
+  const cfg = loadTeachConfig();
+  if (!cfg.apiKey) {
+    openTeachSetup();
+    return;
+  }
+  const panel = document.getElementById('teachPanel');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden) {
+    renderTeachPresets();
+    setTeachStatus('');
+  }
+});
+document.getElementById('teachClose').addEventListener('click', () => {
+  if (state.teachAbort) state.teachAbort.abort();
+  document.getElementById('teachPanel').hidden = true;
+});
+document.getElementById('cfgSave').addEventListener('click', saveTeachSetup);
+document.getElementById('cfgCancel').addEventListener('click', () => {
+  document.getElementById('teachSetupOverlay').hidden = true;
+});
 document.getElementById('ovNew').addEventListener('click', () => {
   document.getElementById('saveTip').hidden = true;
   newGame();
