@@ -123,6 +123,19 @@
       </section>
 
       <section class="group">
+        <button class="btn hint-btn" id="btnGetHint">💡 求助：下一步怎么走</button>
+        <div class="hint-panel" id="hintPanel" hidden>
+          <div class="hint-head">
+            <span class="hint-move" id="hintMove">—</span>
+            <span class="hint-score" id="hintScore"></span>
+            <button class="hint-close" id="hintClose" title="关闭">×</button>
+          </div>
+          <ul class="hint-reasons" id="hintReasons"></ul>
+          <div class="hint-meta" id="hintMeta"></div>
+        </div>
+      </section>
+
+      <section class="group">
         <label class="group-label">对局记录</label>
         <div class="move-list" id="moveList"></div>
       </section>

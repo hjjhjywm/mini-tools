@@ -21,6 +21,7 @@ let aiJs = read('ai.js');
 let endgamesJs = read('endgames.js');
 let replayJs = read('replay.js');
 let soundJs = read('sound.js');
+let hintJs = read('hint.js');
 let mainJs = read('main.js');
 
 // 所有模块顶部都有 import 语句，内联后统一改成一个作用域，需要全部去掉。
@@ -40,6 +41,7 @@ function stripLocalImports(src) {
 
 mainJs = stripLocalImports(mainJs);
 soundJs = stripLocalImports(soundJs);
+hintJs = stripLocalImports(hintJs);
 replayJs = stripLocalImports(replayJs);
 endgamesJs = stripLocalImports(endgamesJs);
 aiJs = stripLocalImports(aiJs);
@@ -59,6 +61,7 @@ aiJs = stripExports(aiJs);
 endgamesJs = stripExports(endgamesJs);
 replayJs = stripExports(replayJs);
 soundJs = stripExports(soundJs);
+hintJs = stripExports(hintJs);
 
 const bundle = [
   '(function(){',
@@ -73,6 +76,8 @@ const bundle = [
   replayJs,
   '/* ===== sound.js ===== */',
   soundJs,
+  '/* ===== hint.js ===== */',
+  hintJs,
   '/* ===== main.js ===== */',
   mainJs,
   '})();',

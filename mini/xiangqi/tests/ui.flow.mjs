@@ -82,7 +82,8 @@ const IDS = ['board', 'statusLine', 'thinking', 'turnText', 'turnBadge', 'checkW
   'replayGroup', 'replayList', 'replayControls', 'replayTitle', 'replaySlider',
   'replayCount', 'replayStep', 'btnFirst', 'btnPrev', 'btnPlay', 'btnNext', 'btnLast',
   'btnDeleteGame', 'btnSaveCur', 'btnImport', 'fileInput',
-  'saveTip', 'saveTipText', 'btnSaveYes', 'btnSaveNo', 'ovReview'];
+  'saveTip', 'saveTipText', 'btnSaveYes', 'btnSaveNo', 'ovReview',
+  'btnGetHint', 'hintPanel', 'hintMove', 'hintScore', 'hintReasons', 'hintMeta', 'hintClose'];
 for (const id of IDS) els[id] = makeEl(id);
 
 // localStorage 桩
@@ -595,6 +596,44 @@ console.log('\n音效设置：');
     threw = true;
   }
   ok(!threw, '无 AudioContext 时所有音效调用都不崩溃');
+}
+
+
+// ---------- AI 求助 ----------
+console.log('\nAI 求助：');
+{
+  const pveB = els.modeGroup._subButtons.find(b => b.dataset.mode === 'pve');
+  modeFns2[0]({ target: pveB });
+  await new Promise(r => setTimeout(r, 100));
+
+  ok(els.hintPanel.hidden === true, '初始时求助面板隐藏');
+
+  const hintFns = handlers['btnGetHint:click'] || [];
+  ok(hintFns.length > 0, '求助按钮已绑定');
+
+  if (hintFns.length) {
+    hintFns[0]();
+    const done = await waitUntil(() => els.hintPanel.hidden === false, 20000, 150);
+    ok(done, '点击求助后面板出现');
+
+    if (done) {
+      const moveText = els.hintMove.textContent;
+      console.log('    [诊断] 建议: ' + moveText + ' | 评分: ' + els.hintScore.textContent);
+      console.log('    [诊断] 理由: ' + els.hintReasons.innerHTML.replace(/<[^>]+>/g, '|'));
+      ok(moveText && moveText !== '—', '显示了推荐着法：' + moveText);
+      const reasonCount = (els.hintReasons._children || []).length;
+      ok(reasonCount > 0, '显示了 ' + reasonCount + ' 条理由');
+      ok(els.hintMeta.textContent.length > 0, '显示了搜索信息');
+    }
+  }
+
+  const closeFns = handlers['hintClose:click'] || [];
+  ok(closeFns.length > 0, '关闭按钮已绑定');
+  if (closeFns.length) {
+    closeFns[0]();
+    await new Promise(r => setTimeout(r, 60));
+  }
+  ok(els.hintPanel.hidden === true, '点关闭后面板收起');
 }
 
 console.log(`\n界面流程测试：通过 ${pass} / 失败 ${fail}`);

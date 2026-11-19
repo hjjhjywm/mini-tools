@@ -2,6 +2,7 @@ import { Board, RED, BLACK, PIECE_CHARS, pieceSide, opposite } from './engine.js
 import { chooseMove, evaluate, DIFFICULTIES } from './ai.js';
 import { ENDGAMES } from './endgames.js';
 import { loadAll, addGame, removeGame, fromImport, Replayer, toJson, normalizeFen } from './replay.js';
+import { getHint } from './hint.js';
 // 音效模块的函数名自带前缀，打包内联后与其它模块不冲突
 import {
   playSound,
@@ -56,6 +57,8 @@ const state = {
   gameSaved: false,      // 本局是否已实际保存过（防重复入库）
   savedGameId: null,     // 本局已保存记录的 id
   saveTipTimer: null,   // 结束提示条的自动收起定时器
+  hint: null,           // 当前求助建议
+  hintThinking: false,  // 求助计算中
 };
 
 // ---------- 绘图 ----------
@@ -293,9 +296,62 @@ function render() {
   drawBoard();
   drawHighlights();
   drawPieces();
+  // 求助推荐的高亮画在棋子之上，确保看得见
+  if (state.hint && state.hint.move) drawHintMark();
   // 动画中的棋子画在最上层
   if (state.anim) drawAnimPiece();
   updateSideUI();
+}
+
+/** 画出求助推荐的着法：起点到终点的箭头 + 终点虚线圈 */
+function drawHintMark() {
+  const { from, to } = state.hint.move;
+  const fx = px(from[0]), fy = py(from[1]);
+  const tx = px(to[0]), ty = py(to[1]);
+
+  ctx.save();
+
+  // 起点：淡绿色实心圆
+  ctx.beginPath();
+  ctx.arc(fx, fy, CELL * 0.18, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(90, 220, 120, .55)';
+  ctx.fill();
+
+  // 终点：虚线圆 + 箭头
+  ctx.beginPath();
+  ctx.arc(tx, ty, CELL * 0.45, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(90, 220, 120, .95)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([7, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 箭头线
+  const angle = Math.atan2(ty - fy, tx - fx);
+  const r1 = CELL * 0.22, r2 = CELL * 0.36;
+  const sx = fx + Math.cos(angle) * r1;
+  const sy = fy + Math.sin(angle) * r1;
+  const ex = tx - Math.cos(angle) * r2;
+  const ey = ty - Math.sin(angle) * r2;
+
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(ex, ey);
+  ctx.strokeStyle = 'rgba(90, 220, 120, .8)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 箭头头部
+  const headLen = 14, headAngle = Math.PI / 7;
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - headLen * Math.cos(angle - headAngle), ey - headLen * Math.sin(angle - headAngle));
+  ctx.lineTo(ex - headLen * Math.cos(angle + headAngle), ey - headLen * Math.sin(angle + headAngle));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(90, 220, 120, .9)';
+  ctx.fill();
+
+  ctx.restore();
 }
 
 // ---------- 走子动画 ----------
@@ -496,6 +552,10 @@ function performMove(move) {
     cap: captured ? PIECE_CHARS[captured] : null,
   });
   state.moveCount++;
+  // 走完一步，之前的求助建议就过期了，清掉避免误导
+  state.hint = null;
+  const hintPanel = document.getElementById('hintPanel');
+  if (hintPanel) hintPanel.hidden = true;
   renderMoveLog();
   render();
 
@@ -710,6 +770,10 @@ function newGame() {
   state.aiThinking = false;
   state.anim = null;
   state.animDone = null;
+  state.hint = null;
+  state.hintThinking = false;
+  const hp = document.getElementById('hintPanel');
+  if (hp) hp.hidden = true;
   document.getElementById('overlay').hidden = true;
   document.getElementById('thinking').hidden = true;
   document.getElementById('aiMeta').textContent = '—';
@@ -761,11 +825,102 @@ function undo() {
   renderMoveLog();
 }
 
+// ---------- AI 求助 ----------
+
+/** 收起求助面板并清除高亮 */
+function clearHint() {
+  state.hint = null;
+  const panel = document.getElementById('hintPanel');
+  if (panel) panel.hidden = true;
+  render();
+}
+
+/** 请求下一步建议 */
+function requestHint() {
+  if (state.hintThinking) return;
+  if (state.gameOver) {
+    showHintPanel({ notation: '对局已结束', reasons: ['点「重新开局」开始新的一局'], scoreText: '', meta: '' });
+    return;
+  }
+  if (state.mode === 'replay') {
+    showHintPanel({ notation: '回顾模式', reasons: ['回顾时不能走子，切回对局模式再求助'], scoreText: '', meta: '' });
+    return;
+  }
+
+  const board = state.board;
+  const legal = board.legalMoves(board.side);
+  if (legal.length === 0) {
+    showHintPanel({ notation: '无着可走', reasons: ['当前局面已经没有合法着法'], scoreText: '', meta: '' });
+    return;
+  }
+
+  state.hintThinking = true;
+  const btn = document.getElementById('btnGetHint');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 分析中…';
+
+  // 让 UI 先更新，再跑搜索（否则界面会卡住）
+  setTimeout(() => {
+    try {
+      const h = getHint(board, { depth: 6, timeLimit: 1500 });
+      state.hintThinking = false;
+      btn.disabled = false;
+      btn.textContent = oldText;
+
+      if (!h) {
+        showHintPanel({ notation: '想不出来', reasons: ['当前局面比较复杂，建议自己判断'], scoreText: '', meta: '' });
+        return;
+      }
+
+      state.hint = h;
+      showHintPanel({
+        notation: h.notation,
+        reasons: h.reasons,
+        scoreText: h.summary,
+        meta: `搜索深度 ${h.depth} · ${h.nodes} 节点 · 我方子力 ${h.material.mine} : 对方 ${h.material.theirs}`,
+      });
+      render();
+      playSound('ui');
+    } catch (e) {
+      state.hintThinking = false;
+      btn.disabled = false;
+      btn.textContent = oldText;
+      showHintPanel({ notation: '出错了', reasons: [String(e.message || e)], scoreText: '', meta: '' });
+    }
+  }, 40);
+}
+
+/** 显示求助面板 */
+function showHintPanel({ notation, reasons, scoreText, meta }) {
+  const panel = document.getElementById('hintPanel');
+  if (!panel) return;
+  panel.hidden = false;
+
+  document.getElementById('hintMove').textContent = notation || '—';
+  document.getElementById('hintScore').textContent = scoreText || '';
+
+  const ul = document.getElementById('hintReasons');
+  ul.innerHTML = '';
+  for (const r of (reasons || [])) {
+    const li = document.createElement('li');
+    li.textContent = r;
+    if (r.includes('⚠') || r.includes('亏本')) li.className = 'warn';
+    ul.appendChild(li);
+  }
+
+  const metaEl = document.getElementById('hintMeta');
+  metaEl.textContent = meta || '';
+  metaEl.hidden = !meta;
+}
+
 // ---------- 事件绑定 ----------
 canvas.addEventListener('click', onClick);
 
 document.getElementById('btnNew').addEventListener('click', newGame);
 document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnGetHint').addEventListener('click', requestHint);
+document.getElementById('hintClose').addEventListener('click', clearHint);
 document.getElementById('ovNew').addEventListener('click', () => {
   document.getElementById('saveTip').hidden = true;
   newGame();
