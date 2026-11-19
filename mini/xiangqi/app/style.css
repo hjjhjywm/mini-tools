@@ -771,3 +771,32 @@ html, body {
   margin-top: 16px;
 }
 .setup-actions .btn { flex: 1; }
+
+/* 教学模式：自由提问输入行 */
+.teach-ask {
+  display: flex;
+  gap: 6px;
+}
+.teach-ask input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid rgba(106, 74, 138, .5);
+  border-radius: 6px;
+  outline: none;
+}
+.teach-ask input:focus {
+  border-color: #8a6aa8;
+  background: rgba(0, 0, 0, .38);
+}
+.teach-ask input::placeholder {
+  color: #6a5a7a;
+}
+.teach-ask .btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+}

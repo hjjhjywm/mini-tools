@@ -778,6 +778,35 @@ html, body {
 }
 .setup-actions .btn { flex: 1; }
 
+/* 教学模式：自由提问输入行 */
+.teach-ask {
+  display: flex;
+  gap: 6px;
+}
+.teach-ask input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid rgba(106, 74, 138, .5);
+  border-radius: 6px;
+  outline: none;
+}
+.teach-ask input:focus {
+  border-color: #8a6aa8;
+  background: rgba(0, 0, 0, .38);
+}
+.teach-ask input::placeholder {
+  color: #6a5a7a;
+}
+.teach-ask .btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+}
+
 </style>
 </head>
 <body>
@@ -905,6 +934,10 @@ html, body {
             <button class="hint-close" id="teachClose" title="关闭">×</button>
           </div>
           <div class="teach-presets" id="teachPresets"></div>
+          <div class="teach-ask">
+            <input type="text" id="teachInput" placeholder="或直接问教练，如「他为什么走这步」…" maxlength="120">
+            <button class="btn tiny" id="teachSend">发送</button>
+          </div>
           <div class="teach-answer" id="teachAnswer"></div>
           <div class="teach-status" id="teachStatus"></div>
         </div>
@@ -3017,7 +3050,7 @@ function materialText(board) {
 /**
  * 构建给模型的局面摘要（本地算好，模型只负责讲解）
  */
-function buildSituation(board, hint) {
+function buildSituation(board, hint, lastMove) {
   const side = board.side === RED ? '红方' : '黑方';
   const mat = materialText(board);
   const inCheck = board.isChecked(board.side);
@@ -3030,12 +3063,21 @@ function buildSituation(board, hint) {
     }
   }
 
+  // 描述对方上一步（供"对方想干什么"这类问题使用）
+  let lastMoveText = '';
+  if (lastMove && lastMove.text) {
+    lastMoveText = `对方上一步走的是：${lastMove.text}`;
+    if (lastMove.cap) lastMoveText += `（吃掉了${lastMove.cap}）`;
+    lastMoveText += '。';
+  }
+
   return {
     side,
     boardText: boardToText(board),
     material: mat,
     inCheck,
     analysis,
+    lastMoveText,
   };
 }
 
@@ -3053,6 +3095,7 @@ function buildPrompt(situation, question, style) {
 ${situation.boardText}
 
 轮到：${situation.side}
+${situation.lastMoveText ? situation.lastMoveText : ''}
 红方子力：${situation.material.red}
 黑方子力：${situation.material.black}
 ${situation.inCheck ? '当前被将军。' : ''}
@@ -3150,7 +3193,7 @@ async function streamTeach(cfg, prompt, onChunk, signal) {
  */
 async function explainPosition(board, hint, opts = {}) {
   const cfg = loadTeachConfig();
-  const situation = buildSituation(board, hint);
+  const situation = buildSituation(board, hint, opts.lastMove);
   const question = opts.question || '请分析当前局面，告诉我现在最该注意什么、下一步该往哪个方向走。';
   const prompt = buildPrompt(situation, question, opts.style || 'intermediate');
   return streamTeach(cfg, prompt, opts.onChunk || (() => {}), opts.signal);
@@ -3158,6 +3201,7 @@ async function explainPosition(board, hint, opts = {}) {
 
 /** 预设问题（降低用户输入成本） */
 const PRESET_QUESTIONS = [
+  { id: 'opponent', label: '对方想干什么', q: '对方上一步走这个子，意图是什么？他想在哪里形成威胁？我该怎么应对？', needsLastMove: true },
   { id: 'next', label: '下一步怎么走', q: '我下一步该怎么走？为什么？' },
   { id: 'plan', label: '整体思路', q: '这个局面我该采取什么整体策略？进攻还是防守？重点在哪个区域？' },
   { id: 'danger', label: '我有什么危险', q: '我现在有什么潜在危险？对方可能有什么威胁我没注意到？' },
@@ -3172,16 +3216,17 @@ const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 
 // 画布逻辑尺寸（9列×10行棋盘，含边距）
-const MARGIN = 70;
 const CELL = 88;
 const W = 900, H = 1000;
 canvas.width = W;
 canvas.height = H;
 
-const BOARD_W = CELL * 8;      // 棋盘线宽
-const BOARD_H = CELL * 9;
-const OX = MARGIN;
-const OY = MARGIN;
+const BOARD_W = CELL * 8;      // 棋盘线宽（8 格宽）
+const BOARD_H = CELL * 9;      // 9 格高
+// 精确居中：左右、上下空白各自相等（原先固定 MARGIN=70 导致右边多出 56px、下边多出 68px）
+const OX = (W - BOARD_W) / 2;
+const OY = (H - BOARD_H) / 2;
+const MARGIN = OX;             // 保留此名给旧代码引用
 
 // 坐标转换
 const px = (x) => OX + x * CELL;
@@ -3215,6 +3260,7 @@ const state = {
   hint: null,           // 当前求助建议
   hintThinking: false,  // 求助计算中
   teachAbort: null,     // 教学请求的取消控制器
+  lastMoveInfo: null,   // 上一步的详细信息（供教学模式分析对方意图）
   teachBusy: false,     // 教学请求进行中
 };
 
@@ -3699,6 +3745,7 @@ function performMove(move) {
   state.lastMove = { from: move.from, to: move.to };
   state.checkSide = b.isChecked(b.side) ? b.side : null;
   state.moveLog.push({ text, side: mover, captured });
+  state.lastMoveInfo = { text, side: mover, cap: captured ? PIECE_CHARS[captured] : null };
   // 记录完整走子信息，供保存棋谱用
   state.moveRecords.push({
     n: Math.floor(state.moveRecords.length / 2) + 1,
@@ -3929,6 +3976,7 @@ function newGame() {
   state.animDone = null;
   state.hint = null;
   state.hintThinking = false;
+  state.lastMoveInfo = null;
   const hp = document.getElementById('hintPanel');
   if (hp) hp.hidden = true;
   document.getElementById('overlay').hidden = true;
@@ -4164,6 +4212,7 @@ async function askTeacher(question) {
       question,
       style: cfg.style || 'intermediate',
       signal: ctrl.signal,
+      lastMove: state.lastMoveInfo,
       onChunk: (delta) => {
         if (!firstChunkAt) {
           firstChunkAt = Date.now();
@@ -4218,6 +4267,26 @@ document.getElementById('teachClose').addEventListener('click', () => {
   document.getElementById('teachPanel').hidden = true;
 });
 document.getElementById('cfgSave').addEventListener('click', saveTeachSetup);
+
+// 自由提问：回车或点发送
+function submitFreeQuestion() {
+  const input = document.getElementById('teachInput');
+  const q = (input.value || '').trim();
+  if (!q) {
+    setTeachStatus('先输入你的问题');
+    return;
+  }
+  if (state.teachBusy) return;
+  input.value = '';
+  askTeacher(q);
+}
+document.getElementById('teachSend').addEventListener('click', submitFreeQuestion);
+document.getElementById('teachInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    submitFreeQuestion();
+  }
+});
 document.getElementById('cfgCancel').addEventListener('click', () => {
   document.getElementById('teachSetupOverlay').hidden = true;
 });

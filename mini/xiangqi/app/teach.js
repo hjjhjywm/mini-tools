@@ -83,7 +83,7 @@ function materialText(board) {
 /**
  * 构建给模型的局面摘要（本地算好，模型只负责讲解）
  */
-export function buildSituation(board, hint) {
+export function buildSituation(board, hint, lastMove) {
   const side = board.side === RED ? '红方' : '黑方';
   const mat = materialText(board);
   const inCheck = board.isChecked(board.side);
@@ -96,12 +96,21 @@ export function buildSituation(board, hint) {
     }
   }
 
+  // 描述对方上一步（供"对方想干什么"这类问题使用）
+  let lastMoveText = '';
+  if (lastMove && lastMove.text) {
+    lastMoveText = `对方上一步走的是：${lastMove.text}`;
+    if (lastMove.cap) lastMoveText += `（吃掉了${lastMove.cap}）`;
+    lastMoveText += '。';
+  }
+
   return {
     side,
     boardText: boardToText(board),
     material: mat,
     inCheck,
     analysis,
+    lastMoveText,
   };
 }
 
@@ -119,6 +128,7 @@ function buildPrompt(situation, question, style) {
 ${situation.boardText}
 
 轮到：${situation.side}
+${situation.lastMoveText ? situation.lastMoveText : ''}
 红方子力：${situation.material.red}
 黑方子力：${situation.material.black}
 ${situation.inCheck ? '当前被将军。' : ''}
@@ -216,7 +226,7 @@ export async function streamTeach(cfg, prompt, onChunk, signal) {
  */
 export async function explainPosition(board, hint, opts = {}) {
   const cfg = loadTeachConfig();
-  const situation = buildSituation(board, hint);
+  const situation = buildSituation(board, hint, opts.lastMove);
   const question = opts.question || '请分析当前局面，告诉我现在最该注意什么、下一步该往哪个方向走。';
   const prompt = buildPrompt(situation, question, opts.style || 'intermediate');
   return streamTeach(cfg, prompt, opts.onChunk || (() => {}), opts.signal);
@@ -224,6 +234,7 @@ export async function explainPosition(board, hint, opts = {}) {
 
 /** 预设问题（降低用户输入成本） */
 export const PRESET_QUESTIONS = [
+  { id: 'opponent', label: '对方想干什么', q: '对方上一步走这个子，意图是什么？他想在哪里形成威胁？我该怎么应对？', needsLastMove: true },
   { id: 'next', label: '下一步怎么走', q: '我下一步该怎么走？为什么？' },
   { id: 'plan', label: '整体思路', q: '这个局面我该采取什么整体策略？进攻还是防守？重点在哪个区域？' },
   { id: 'danger', label: '我有什么危险', q: '我现在有什么潜在危险？对方可能有什么威胁我没注意到？' },

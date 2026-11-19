@@ -119,9 +119,11 @@ ok(handlers['btnNew:click'] && handlers['btnNew:click'].length > 0, '重新开�
 ok(handlers['btnUndo:click'] && handlers['btnUndo:click'].length > 0, '悔棋已绑定');
 
 // 走一步棋：红兵(0,6) -> (0,5)
-const MARGIN = 70, CELL = 88;
+const CELL = 88, CANVAS_W = 900, CANVAS_H = 1000;
+const OX = (CANVAS_W - CELL * 8) / 2;
+const OY = (CANVAS_H - CELL * 9) / 2;
 const click = (x, y) => {
-  const e = new sandbox.MouseEvent('click', { clientX: MARGIN + x * CELL, clientY: MARGIN + y * CELL, bubbles: true });
+  const e = new sandbox.MouseEvent('click', { clientX: OX + x * CELL, clientY: OY + y * CELL, bubbles: true });
   els.board.dispatchEvent(e);
 };
 click(0, 6);

@@ -154,10 +154,13 @@ const ok = (c, m) => { c ? (pass++, console.log('  ✓ ' + m)) : (fail++, consol
 
 // 棋盘像素坐标 → 点击事件
 function clickCell(x, y) {
-  const MARGIN = 70, CELL = 88;
+  // 与 app/main.js 保持一致：棋盘精确居中
+  const CELL = 88, W = 900, H = 1000;
+  const OX = (W - CELL * 8) / 2;
+  const OY = (H - CELL * 9) / 2;
   const evt = new global.MouseEvent('click', {
-    clientX: MARGIN + x * CELL,
-    clientY: MARGIN + y * CELL,
+    clientX: OX + x * CELL,
+    clientY: OY + y * CELL,
     bubbles: true,
   });
   els.board.dispatchEvent(evt);
@@ -524,14 +527,16 @@ console.log('\n回顾模式棋子完整性：');
   const b3 = Board.fromFen(game3.startFen);
   for (const mv of game3.moves) b3.makeMove({ from: mv.from.slice(), to: mv.to.slice() });
 
-  const MARGIN = 70, CELL = 88;
+  const CELL = 88, W = 900, H = 1000;
+  const OX = (W - CELL * 8) / 2;
+  const OY = (H - CELL * 9) / 2;
   const CHARS = { K: '帅', A: '仕', B: '相', N: '马', R: '车', C: '炮', P: '兵', k: '将', a: '士', b: '象', n: '马', r: '车', c: '炮', p: '卒' };
   const expected = [];
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const p = b3.pieceAt(x, y);
       if (!p) continue;
-      expected.push({ text: CHARS[p], x: MARGIN + x * CELL, y: MARGIN + y * CELL + 1 });
+      expected.push({ text: CHARS[p], x: OX + x * CELL, y: OY + y * CELL + 1 });
     }
   }
 

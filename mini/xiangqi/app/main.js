@@ -24,16 +24,17 @@ const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 
 // 画布逻辑尺寸（9列×10行棋盘，含边距）
-const MARGIN = 70;
 const CELL = 88;
 const W = 900, H = 1000;
 canvas.width = W;
 canvas.height = H;
 
-const BOARD_W = CELL * 8;      // 棋盘线宽
-const BOARD_H = CELL * 9;
-const OX = MARGIN;
-const OY = MARGIN;
+const BOARD_W = CELL * 8;      // 棋盘线宽（8 格宽）
+const BOARD_H = CELL * 9;      // 9 格高
+// 精确居中：左右、上下空白各自相等（原先固定 MARGIN=70 导致右边多出 56px、下边多出 68px）
+const OX = (W - BOARD_W) / 2;
+const OY = (H - BOARD_H) / 2;
+const MARGIN = OX;             // 保留此名给旧代码引用
 
 // 坐标转换
 const px = (x) => OX + x * CELL;
@@ -67,6 +68,7 @@ const state = {
   hint: null,           // 当前求助建议
   hintThinking: false,  // 求助计算中
   teachAbort: null,     // 教学请求的取消控制器
+  lastMoveInfo: null,   // 上一步的详细信息（供教学模式分析对方意图）
   teachBusy: false,     // 教学请求进行中
 };
 
@@ -551,6 +553,7 @@ function performMove(move) {
   state.lastMove = { from: move.from, to: move.to };
   state.checkSide = b.isChecked(b.side) ? b.side : null;
   state.moveLog.push({ text, side: mover, captured });
+  state.lastMoveInfo = { text, side: mover, cap: captured ? PIECE_CHARS[captured] : null };
   // 记录完整走子信息，供保存棋谱用
   state.moveRecords.push({
     n: Math.floor(state.moveRecords.length / 2) + 1,
@@ -781,6 +784,7 @@ function newGame() {
   state.animDone = null;
   state.hint = null;
   state.hintThinking = false;
+  state.lastMoveInfo = null;
   const hp = document.getElementById('hintPanel');
   if (hp) hp.hidden = true;
   document.getElementById('overlay').hidden = true;
@@ -1016,6 +1020,7 @@ async function askTeacher(question) {
       question,
       style: cfg.style || 'intermediate',
       signal: ctrl.signal,
+      lastMove: state.lastMoveInfo,
       onChunk: (delta) => {
         if (!firstChunkAt) {
           firstChunkAt = Date.now();
@@ -1070,6 +1075,26 @@ document.getElementById('teachClose').addEventListener('click', () => {
   document.getElementById('teachPanel').hidden = true;
 });
 document.getElementById('cfgSave').addEventListener('click', saveTeachSetup);
+
+// 自由提问：回车或点发送
+function submitFreeQuestion() {
+  const input = document.getElementById('teachInput');
+  const q = (input.value || '').trim();
+  if (!q) {
+    setTeachStatus('先输入你的问题');
+    return;
+  }
+  if (state.teachBusy) return;
+  input.value = '';
+  askTeacher(q);
+}
+document.getElementById('teachSend').addEventListener('click', submitFreeQuestion);
+document.getElementById('teachInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    submitFreeQuestion();
+  }
+});
 document.getElementById('cfgCancel').addEventListener('click', () => {
   document.getElementById('teachSetupOverlay').hidden = true;
 });
